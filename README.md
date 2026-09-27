@@ -2,40 +2,54 @@
 
 ## Overview
 
-> **[PLACEHOLDER - Product description]** Describe what Quickened does in 1-2 sentences.
+Quickened is a lightweight, privacy-first Android app that turns everyday moments (walking, commuting, working out, resting) into short spoken Scripture reflections, encouragements, or prayers.
 
 ## Problem
 
-> **[PLACEHOLDER - Problem statement]** Describe the problem Quickened solves.
+Faith often stays limited to morning quiet time, church, or bedtime. Busy believers struggle to keep consistent spiritual habits in ordinary moments.
 
 ## Target Users
 
-> **[PLACEHOLDER - Target users]** Describe who Quickened is for.
+- Christians who want faith present in ordinary moments
+- Busy believers outside set prayer/church times
+- People who walk, commute, or exercise and want those moments Christ-centered
+- Privacy-conscious users who prefer local-only data
 
-## Planned Features
+## Planned Features (Phase 1 MVP)
 
-> **[PLACEHOLDER - Features]** List the main features planned.
->
-> - [TODO: Feature 1]
-> - [TODO: Feature 2]
-> - [TODO: Feature 3]
+- Tone selection: Gentle, Encouraging, Contemplative, Challenging
+- One-tap Start Experience (1–3 min spoken reflection)
+- Android built-in TTS, Stop / Pause
+- Session history with tone, date, preview + replay
+- Manual activity toggle: Walking / Resting
+- Full offline operation
 
 ## Technology / Framework
 
-> **[PLACEHOLDER - Tech stack]** Specify the technology and framework used.
->
-> - Language: [TODO]
-> - Framework: [TODO]
+- **Framework:** Kotlin + Jetpack Compose (Material3)
+- **Database:** Room — settings and session history
+- **Authentication:** None — no accounts, no login
+- **File Storage:** App internal storage, static content only (`assets/content/*.json`)
+- **Text-to-Speech:** Android built-in TTS (offline voices)
+- **Min SDK:** Android 8.0 (API 26), phones + tablets
+
+**Explicit:** App and DB run locally for now. No backend, no network requests for core features, no tracking, no analytics, no cloud sync in Phase 1–3.
 
 ## Installation and Running
 
-> **[PLACEHOLDER - Setup instructions]** Provide installation and run steps once the stack is decided.
->
-> ```sh
-> # TODO: Add install command
-> # TODO: Add run command
-> ```
+Requirements: Android Studio Ladybug+, JDK 17, Android SDK 26+.
+
+```sh
+git clone https://github.com/DoubraSipi/Quickened.git
+# Open folder in Android Studio
+# Let Gradle sync, ensure offline TTS voice installed on device/emulator
+./gradlew assembleDebug
+# Run: Shift+F10 in Android Studio, or:
+./gradlew installDebug
+```
+
+Use airplane mode to verify offline: tone → Start → Stop → History.
 
 ## Status
 
-Early planning stage. This README will be updated as product details are defined.
+Planning + Phase 0 setup. See `IMPLEMENTATION_PLAN.md` for ordered phases.
