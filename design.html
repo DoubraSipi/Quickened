@@ -6,10 +6,11 @@
 <title>Quickened — Design Preview</title>
 <style>
 :root{
-  --primary:#0f766e; --primary-soft:#ccfbf1; --accent:#16a34a;
-  --bg:#faf9f6; --surface:#ffffff; --charcoal:#1c1917;
-  --text:#1c1917; --muted:#78716c; --border:#e7e5e4;
-  --gentle:#7dd3fc; --encouraging:#86efac; --contemplative:#c4b5fd; --challenging:#fca5a5;
+  --primary:#0D9488; --primary-dark:#0F766E;
+  --bg:#F8FAFC; --surface:#ffffff; --bg-dark:#0F172A;
+  --text:#0F172A; --muted:#64748B; --border:#e2e8f0;
+  --accent:#10B981;
+  --gentle:#3B82F6; --encouraging:#22C55E; --contemplative:#8B5CF6; --challenging:#D97706;
 }
 *{box-sizing:border-box}
 body{margin:0;font-family:Inter,system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;background:var(--bg);color:var(--text);line-height:1.6}
@@ -21,49 +22,65 @@ p.lead{color:var(--muted);font-size:1.125rem}
 .swatch div{height:64px} .swatch span{display:block;padding:8px 10px;font-size:.85rem}
 .type{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:20px}
 .btn{display:inline-block;border:0;border-radius:999px;padding:18px 32px;font-size:1.15rem;font-weight:700;background:var(--primary);color:#fff;min-height:56px;cursor:pointer}
-.btn:active{transform:scale(.98)}
-.btn-secondary{background:var(--primary-soft);color:var(--primary)}
+.btn:active{background:var(--primary-dark);transform:scale(.98)}
+.btn-secondary{background:#ccfbf1;color:var(--primary-dark)}
 .card{background:var(--surface);border:1px solid var(--border);border-radius:16px;padding:16px;margin:12px 0}
 .chips{display:flex;gap:8px;flex-wrap:wrap}
 .chip{border-radius:999px;padding:8px 16px;font-weight:600;font-size:.9rem;border:1px solid var(--border);background:#fff}
 .field{margin:12px 0} label{display:block;font-weight:600;margin-bottom:6px}
-input,select{width:100%;padding:14px;font-size:1.05rem;border-radius:12px;border:2px solid var(--border);background:#fff}
-input:focus{outline:none;border-color:var(--primary)}
-.dark{background:var(--charcoal);color:#fafaf9;border-radius:16px;padding:20px;margin-top:16px}
-.dark .card{background:#292524;border-color:#44403c;color:#fafaf9}
+input,select{width:100%;padding:14px;font-size:1.05rem;border-radius:12px;border:2px solid var(--border);background:#fff;color:var(--text)}
+input:focus,select:focus{outline:none;border-color:var(--primary)}
+.dark{background:var(--bg-dark);color:#f8fafc;border-radius:16px;padding:20px;margin-top:16px}
+.dark .card{background:#1e293b;border-color:#334155;color:#f8fafc}
 .small{font-size:.9rem;color:var(--muted)}
+table{width:100%;border-collapse:collapse;background:var(--surface);border-radius:12px;overflow:hidden;font-size:.9rem}
+th,td{text-align:left;padding:10px 12px;border-bottom:1px solid var(--border)}
 </style>
 </head>
 <body>
 <div class="wrap">
 <h1>Quickened — Design Preview</h1>
-<p class="lead">Calm Christian aesthetic. Offline-first, large touch targets, TalkBack friendly.</p>
+<p class="lead">Font: Inter (system fallback) — clean, legible while walking, calm, free. Palette stays restrained so spoken content stays the focus.</p>
 
 <h2>1. Colors</h2>
-<div class="swatches">
-<div class="swatch"><div style="background:#0f766e"></div><span>Primary / Deep Teal<br>#0f766e</span></div>
-<div class="swatch"><div style="background:#38bdf8"></div><span>Soft Blue alt<br>#38bdf8</span></div>
-<div class="swatch"><div style="background:#16a34a"></div><span>Accent Green<br>#16a34a</span></div>
-<div class="swatch"><div style="background:#faf9f6"></div><span>BG Off-white<br>#faf9f6</span></div>
-<div class="swatch"><div style="background:#1c1917"></div><span>Dark Charcoal<br>#1c1917</span></div>
-<div class="swatch"><div style="background:#7dd3fc"></div><span>Gentle<br>#7dd3fc</span></div>
-<div class="swatch"><div style="background:#86efac"></div><span>Encouraging<br>#86efac</span></div>
-<div class="swatch"><div style="background:#c4b5fd"></div><span>Contemplative<br>#c4b5fd</span></div>
-<div class="swatch"><div style="background:#fca5a5"></div><span>Challenging<br>#fca5a5</span></div>
+<table>
+<tr><th>Role</th><th>Hex</th><th>Reason</th></tr>
+<tr><td>Primary Soft Teal</td><td>#0D9488</td><td>Peace, trust, calm</td></tr>
+<tr><td>Primary Dark</td><td>#0F766E</td><td>Pressed / emphasis</td></tr>
+<tr><td>BG Light</td><td>#F8FAFC</td><td>Easy on eyes</td></tr>
+<tr><td>BG Dark</td><td>#0F172A</td><td>Peaceful dark mode</td></tr>
+<tr><td>Text Primary</td><td>#0F172A</td><td>High contrast while moving</td></tr>
+<tr><td>Text Secondary</td><td>#64748B</td><td>Supporting text</td></tr>
+<tr><td>Accent / Success</td><td>#10B981</td><td>Growth, encouragement</td></tr>
+<tr><td>Gentle</td><td>#3B82F6</td><td>Calm, comforting</td></tr>
+<tr><td>Encouraging</td><td>#22C55E</td><td>Uplifting</td></tr>
+<tr><td>Contemplative</td><td>#8B5CF6</td><td>Quiet, reflective</td></tr>
+<tr><td>Challenging</td><td>#D97706</td><td>Serious, not harsh</td></tr>
+</table>
+<div class="swatches" style="margin-top:12px">
+<div class="swatch"><div style="background:#0D9488"></div><span>Primary #0D9488</span></div>
+<div class="swatch"><div style="background:#0F766E"></div><span>Primary Dark #0F766E</span></div>
+<div class="swatch"><div style="background:#F8FAFC"></div><span>BG Light #F8FAFC</span></div>
+<div class="swatch"><div style="background:#0F172A"></div><span>BG Dark #0F172A</span></div>
+<div class="swatch"><div style="background:#10B981"></div><span>Accent #10B981</span></div>
+<div class="swatch"><div style="background:#3B82F6"></div><span>Gentle #3B82F6</span></div>
+<div class="swatch"><div style="background:#22C55E"></div><span>Encouraging #22C55E</span></div>
+<div class="swatch"><div style="background:#8B5CF6"></div><span>Contemplative #8B5CF6</span></div>
+<div class="swatch"><div style="background:#D97706"></div><span>Challenging #D97706</span></div>
 </div>
 
-<h2>2. Typography</h2>
+<h2>2. Typography (Inter)</h2>
 <div class="type">
 <div style="font-size:2rem;font-weight:800">Heading — Walk with Him</div>
 <div style="font-size:1.5rem;font-weight:700">Subheading — Start Experience</div>
 <div style="font-size:1.125rem">Body large — “Be still, and know that I am God.” Readable while walking.</div>
-<div class="small">Small / muted — Session • Gentle • 2 min • Sep 28</div>
+<div class="small">Small / muted #64748B — Session • Gentle • 2 min • Sep 28</div>
 </div>
 
 <h2>3. Buttons</h2>
 <button class="btn">▶ Start Experience</button>
 <button class="btn btn-secondary">Pause</button>
-<p class="small">Min 56px height, full-width on phone, 18px+ label.</p>
+<p class="small">Min 56px height, #0D9488 default, #0F766E pressed.</p>
 
 <h2>4. Sample Input</h2>
 <div class="card">
@@ -72,15 +89,16 @@ input:focus{outline:none;border-color:var(--primary)}
 <div class="field"><label for="name">Reflection title (preview)</label>
 <input id="name" value="Peace for the road ahead"></div>
 <div class="chips">
-<span class="chip" style="background:#e0f2fe">Walking</span>
-<span class="chip">Resting</span>
-<span class="chip" style="background:#dcfce7">Gentle</span>
+<span class="chip" style="border-color:#3B82F6;color:#3B82F6">Gentle</span>
+<span class="chip" style="border-color:#22C55E;color:#15803d">Encouraging</span>
+<span class="chip" style="border-color:#8B5CF6;color:#7c3aed">Contemplative</span>
+<span class="chip" style="border-color:#D97706;color:#b45309">Challenging</span>
 </div>
 </div>
 
 <h2>5. History Card + Dark Mode</h2>
 <div class="card"><strong>Peace for the road ahead</strong><br><span class="small">Gentle • Walking • 2 min • Today</span></div>
-<div class="dark"><strong>Dark mode — Charcoal</strong><div class="card">Evening reflection — Contemplative • 3 min</div>
+<div class="dark"><strong>Dark mode — #0F172A</strong><div class="card">Evening reflection — Contemplative • 3 min</div>
 <button class="btn">▶ Start Experience</button></div>
 </div>
 </body>

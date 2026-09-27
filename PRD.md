@@ -132,11 +132,13 @@ Responsive: mobile-first, large touch targets, calm readable UI for use while mo
 - `QuickendStore`: `saveSettings/getSettings/addSession/getSessions/clearHistory`
 - Permissions: none for MVP; optional `ACTIVITY_RECOGNITION`
 
-### 2.4 Design System
+### 2.4 Design System (Locked Sep 28, 2026)
 
-- Primary: soft blue / deep teal; Accent: gentle green; BG off-white / charcoal dark mode
-- Typography: clean sans-serif, larger body, clear hierarchy
-- Components: large Start button, card history list, minimal chrome
+- Font: Inter (system fallback) — readable while walking, calm, free, works for headings + body.
+- Palette: Primary #0D9488 (peace/trust), Primary Dark #0F766E (pressed), BG Light #F8FAFC, BG Dark #0F172A, Text #0F172A / #64748B, Accent #10B981 (growth).
+- Tones: Gentle #3B82F6, Encouraging #22C55E, Contemplative #8B5CF6, Challenging #D97706 — quick mood recognition without visual noise.
+- Components: large Start button (min 56px), card history list, minimal chrome.
+- Why changed: replaced vague "soft blue / deep teal" with exact hex for consistent Compose theming; chose high-contrast text for use while moving; restrained palette keeps spoken content the focus. Preview: `design.html`.
 
 ### 2.5 Success Metrics
 
