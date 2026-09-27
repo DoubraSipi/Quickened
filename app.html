@@ -1,0 +1,73 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Quickened — App Preview</title>
+<style>
+:root{--primary:#0D9488;--dark:#0F766E;--bg:#F8FAFC;--text:#0F172A;--muted:#64748B;--border:#e2e8f0;--card:#fff}
+*{box-sizing:border-box}body{margin:0;font-family:Inter,system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;background:var(--bg);color:var(--text);line-height:1.6}
+.wrap{max-width:640px;margin:0 auto;padding:24px 16px 64px}
+h1{font-size:1.6rem;margin:0}.sub{color:var(--muted);margin:4px 0 16px}
+.grid{display:grid;gap:12px}.card{background:var(--card);border:1px solid var(--border);border-radius:16px;padding:16px}
+.tones{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.tone{border:2px solid var(--border);border-radius:12px;padding:14px;font-weight:700;cursor:pointer;background:#fff;font-size:1rem}
+.tone[aria-pressed="true"]{border-color:var(--primary);background:#ccfbf1}
+.row{display:flex;gap:8px;flex-wrap:wrap}
+.btn{border:0;border-radius:999px;padding:18px 28px;font-size:1.15rem;font-weight:800;background:var(--primary);color:#fff;min-height:56px;cursor:pointer;flex:1}
+.btn:active{background:var(--dark)}.btn.ghost{background:#fff;color:var(--dark);border:2px solid var(--primary);flex:0}
+#content{font-size:1.15rem;white-space:pre-wrap}
+.small{font-size:.9rem;color:var(--muted)}
+.hist{font-size:.95rem}.hist li{margin:8px 0;list-style:none;border-bottom:1px solid var(--border);padding-bottom:8px}
+ul.hist{padding:0}
+</style>
+</head>
+<body>
+<div class="wrap">
+<h1>Quickened</h1>
+<p class="sub">Single-page local preview — Web Speech = Android TTS stand-in, localStorage = Room stand-in. Fully offline, no sign-in.</p>
+<div class="grid">
+<div class="card"><strong>1. Tone</strong><div class="tones" id="tones" role="group" aria-label="Tone">
+<button class="tone" data-tone="gentle" aria-pressed="true">Gentle</button>
+<button class="tone" data-tone="encouraging" aria-pressed="false">Encouraging</button>
+<button class="tone" data-tone="contemplative" aria-pressed="false">Contemplative</button>
+<button class="tone" data-tone="challenging" aria-pressed="false">Challenging</button>
+</div></div>
+<div class="card"><strong>2. Activity</strong><div class="row" id="acts">
+<button class="tone" data-act="walking" aria-pressed="true">Walking</button>
+<button class="tone" data-act="resting" aria-pressed="false">Resting</button>
+</div></div>
+<div class="card"><strong>3. Experience</strong>
+<div class="row"><button class="btn" id="start">▶ Start Experience</button></div>
+<div class="row" style="margin-top:8px"><button class="btn ghost" id="pause">Pause</button><button class="btn ghost" id="stop">Stop</button></div>
+<p class="small" id="status">Ready. Pick a tone, press Start.</p>
+<div id="content" aria-live="polite"></div>
+</div>
+<div class="card"><strong>History (on this device)</strong>
+<ul class="hist" id="hist"></ul>
+<div class="row"><button class="btn ghost" id="clear">Clear history</button></div>
+</div>
+</div>
+</div>
+<script>
+const LIB={
+gentle:["Peace for the road ahead.\n\nBe still, and know that I am God. As you walk, breathe slowly. Christ walks with you. You do not have to hurry your heart. (Psalm 46:10)","Held, not hurried.\n\nCome to me, all who are weary, and I will give you rest. Let each step remind you: you are carried by grace. (Matthew 11:28)"],
+encouraging:["Strength for today.\n\nBe strong and courageous. The Lord your God is with you wherever you go. Lift your head; this walk is worship. (Joshua 1:9)","Keep going in grace.\n\nLet us run with endurance the race set before us, looking to Jesus. One faithful step at a time. (Hebrews 12:1-2)"],
+contemplative:["Quiet with Christ.\n\nIn silence and stillness your soul finds its home. Listen as you move; His voice is gentle. (1 Kings 19:12)","Selah moment.\n\nMeditate on His love. Let the rhythm of your steps become a prayer without words. (Psalm 1:2)"],
+challenging:["Walk in obedience.\n\nIf you love me, keep my commandments. Choose one act of obedience today — and do it now. (John 14:15)","Faith with feet.\n\nBe doers of the word, not hearers only. Who will you forgive, serve, or encourage before this walk ends? (James 1:22)"]};
+let tone="gentle",act="walking",current=null,t0=0;
+const $=id=>document.getElementById(id);
+document.querySelectorAll("#tones .tone").forEach(b=>b.onclick=()=>{tone=b.dataset.tone;document.querySelectorAll("#tones .tone").forEach(x=>x.setAttribute("aria-pressed",x===b));});
+document.querySelectorAll("#acts .tone").forEach(b=>b.onclick=()=>{act=b.dataset.act;document.querySelectorAll("#acts .tone").forEach(x=>x.setAttribute("aria-pressed",x===b));});
+function speak(t){try{speechSynthesis.cancel();const u=new SpeechSynthesisUtterance(t);u.rate=act==="walking"?1:0.92;$("status").textContent="Speaking ("+tone+" • "+act+")…";u.onend=()=>save(true);speechSynthesis.speak(u);}catch(e){$("status").textContent="TTS unavailable — reading silently.";}}
+function save(done){if(!current)return;const s={tone,activity:act,preview:current.split("\n")[0].slice(0,60),secs:Math.round((Date.now()-t0)/1000),ts:new Date().toISOString()};const h=load();h.unshift(s);localStorage.setItem("q_hist",JSON.stringify(h.slice(0,50)));render();if(done)$("status").textContent="Finished — saved to history.";current=null;}
+function load(){try{return JSON.parse(localStorage.getItem("q_hist")||"[]")}catch{return[]}}
+function render(){const h=load();$("hist").innerHTML=h.length?h.map((s,i)=>`<li><strong>${s.preview}</strong><br><span class="small">${s.tone} • ${s.activity} • ${s.secs}s • ${new Date(s.ts).toLocaleString()} — <a href="#" data-i="${i}">replay</a></span></li>`).join(""):"<li class='small'>No sessions yet.</li>";$("hist").querySelectorAll("a").forEach(a=>a.onclick=e=>{e.preventDefault();const s=load()[+a.dataset.i];if(s){const pool=LIB[s.tone]||LIB.gentle;current=pool[0];$("content").textContent=current;t0=Date.now();speak(current);}});}
+$("start").onclick=()=>{const pool=LIB[tone];current=pool[Math.floor(Math.random()*pool.length)];$("content").textContent=current;t0=Date.now();speak(current);};
+$("pause").onclick=()=>{try{if(speechSynthesis.paused){speechSynthesis.resume();$("status").textContent="Resumed.";}else{speechSynthesis.pause();$("status").textContent="Paused.";}}catch{}};
+$("stop").onclick=()=>{try{speechSynthesis.cancel();}catch{}if(current){save(false);$("status").textContent="Stopped — saved to history.";}};
+$("clear").onclick=()=>{localStorage.removeItem("q_hist");render();};
+render();
+</script>
+</body>
+</html>
