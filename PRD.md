@@ -164,6 +164,13 @@ Responsive: mobile-first, large touch targets, calm readable UI for use while mo
 
 On-device generation, driving/workout detection, reminders, export, translations, widget, Wear OS.
 
+### 5.1 Deferred: Optional Postgres Sync + Netlify Deployment (decided Oct 2026)
+
+Local Room stays source of truth for v1.0–3. If cloud sync is ever added: opt-in only, offline remains fully functional without it.
+- Deployment target: Netlify (web previews like `app.html`/`design.html` as static sites; API via Netlify Functions).
+- Postgres via managed provider (e.g. Neon/Supabase — Netlify does not host Postgres itself); functions mirror anonymized sessions only.
+- Requires separate backend design (API, auth, hosting, deployment) — out of MVP scope.
+
 ## 6. Risks & Mitigations
 
 - TTS quality varies (High/Med) → voice selection, test common devices
