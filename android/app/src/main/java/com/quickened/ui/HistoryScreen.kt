@@ -32,6 +32,7 @@ fun HistoryScreen(
     onFilter: (String) -> Unit,
     onReplay: (Session) -> Unit,
     onToggleFavorite: (Session) -> Unit,
+    onExport: () -> Unit,
     onClear: () -> Unit,
     onBack: () -> Unit
 ) {
@@ -85,6 +86,7 @@ fun HistoryScreen(
                 }
             }
         }
+        OutlinedButton(onClick = onExport, modifier = Modifier.fillMaxWidth().height(54.dp), shape = RoundedCornerShape(18.dp)) { Text("⤴ Export as text") }
         OutlinedButton(onClick = onClear, modifier = Modifier.fillMaxWidth().height(54.dp), shape = RoundedCornerShape(18.dp)) { Text("Clear all") }
         OutlinedButton(onClick = onBack, modifier = Modifier.fillMaxWidth().height(54.dp), shape = RoundedCornerShape(18.dp)) { Text("← Home") }
     }

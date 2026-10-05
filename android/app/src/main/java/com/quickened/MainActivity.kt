@@ -16,6 +16,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.room.Room
 import com.quickened.content.ContentRepository
+import com.quickened.content.ExportHelper
 import com.quickened.content.Reflection
 import com.quickened.content.StatsCalculator
 import com.quickened.data.AppDatabase
@@ -157,6 +158,12 @@ class MainActivity : ComponentActivity() {
                     scope.launch {
                         store.setFavorite(sess.id, !sess.isFavorite)
                         refreshAll()
+                    }
+                },
+                onExport = {
+                    scope.launch {
+                        val all = store.getSessions()
+                        ExportHelper.share(this@MainActivity, all)
                     }
                 },
                 onClear = { scope.launch { store.clearHistory(); refreshAll() } },
