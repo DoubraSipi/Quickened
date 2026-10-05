@@ -1,8 +1,12 @@
 package com.quickened
 
+import android.app.TimePickerDialog
+import android.content.pm.PackageManager
+import android.os.Build
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.material3.Surface
@@ -22,6 +26,7 @@ import com.quickened.content.StatsCalculator
 import com.quickened.data.AppDatabase
 import com.quickened.data.QuickendStore
 import com.quickened.data.Session
+import com.quickened.reminder.ReminderScheduler
 import com.quickened.tts.TtsManager
 import com.quickened.ui.ExperienceScreen
 import com.quickened.ui.HistoryScreen
@@ -34,6 +39,10 @@ class MainActivity : ComponentActivity() {
     private lateinit var store: QuickendStore
     private lateinit var tts: TtsManager
     private var themeState = mutableStateOf("system")
+
+    private val notifPermission = registerForActivityResult(
+        ActivityResultContracts.RequestPermission()
+    ) { }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -79,6 +88,10 @@ class MainActivity : ComponentActivity() {
         var statsLine by remember { mutableStateOf("Begin your first moment with God today.") }
         var streakLine by remember { mutableStateOf("Day 1 — a new rhythm begins.") }
         var verseOfDay by remember { mutableStateOf<Reflection?>(null) }
+        var reminderOn by remember { mutableStateOf(false) }
+        var reminderHour by remember { mutableStateOf(7) }
+        var reminderMinute by remember { mutableStateOf(0) }
+        val reminderLabel = "%02d:%02d".format(reminderHour, reminderMinute)
 
         fun persistSettings() {
             scope.launch {
@@ -105,6 +118,10 @@ class MainActivity : ComponentActivity() {
             tone = st.preferredTone
             voice = st.voice
             onTheme(st.theme)
+            reminderOn = st.reminderEnabled
+            reminderHour = st.reminderHour
+            reminderMinute = st.reminderMinute
+            if (reminderOn) ReminderScheduler.schedule(this@MainActivity, reminderHour, reminderMinute)
             if (voice.isNotEmpty()) tts.setVoice(voice)
             for (i in 0 until 6) {
                 voices = tts.availableVoices()
@@ -189,7 +206,46 @@ class MainActivity : ComponentActivity() {
                         store.saveSettings(store.getSettings().copy(theme = it))
                     }
                 },
-                onClearHistory = { scope.launch { store.clearHistory(); refreshAll() } },
+                reminderEnabled = reminderOn,
+                onReminderEnabled = { on ->
+                    if (on && Build.VERSION.SDK_INT >= 33 &&
+                        checkSelfPermission(android.Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED
+                    ) {
+                        notifPermission.launch(android.Manifest.permission.POST_NOTIFICATIONS)
+                    }
+                    reminderOn = on
+                    scope.launch {
+                        val cur = store.getSettings()
+                        store.saveSettings(cur.copy(reminderEnabled = on))
+                    }
+                    if (on) ReminderScheduler.schedule(this@MainActivity, reminderHour, reminderMinute)
+                    else ReminderScheduler.cancel(this@MainActivity)
+                },
+                reminderTime = reminderLabel,
+                onPickTime = {
+                    TimePickerDialog(
+                        this@MainActivity,
+                        { _, h, m ->
+                            reminderHour = h
+                            reminderMinute = m
+                            scope.launch {
+                                val cur = store.getSettings()
+                                store.saveSettings(cur.copy(reminderHour = h, reminderMinute = m))
+                            }
+                            if (reminderOn) ReminderScheduler.schedule(this@MainActivity, h, m)
+                        },
+                        reminderHour, reminderMinute, true
+                    ).show()
+                },
+                onClearHistory = {
+                    scope.launch {
+                        store.clearHistory()
+                        refreshAll()
+                        android.widget.Toast.makeText(
+                            this@MainActivity, "History cleared", android.widget.Toast.LENGTH_SHORT
+                        ).show()
+                    }
+                },
                 onBack = { screen = Screen.Home }
             )
         }

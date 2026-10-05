@@ -21,5 +21,8 @@ data class Settings(
     val preferredTone: String = "gentle",
     val voice: String = "",
     val theme: String = "system", // "system" | "light" | "dark"
-    val autoDetectActivity: Boolean = false
+    val autoDetectActivity: Boolean = false,
+    val reminderEnabled: Boolean = false,
+    val reminderHour: Int = 7,
+    val reminderMinute: Int = 0
 )

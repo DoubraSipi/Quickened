@@ -44,6 +44,10 @@ fun SettingsScreen(
     onDownloadVoices: () -> Unit,
     theme: String,
     onTheme: (String) -> Unit,
+    reminderEnabled: Boolean,
+    onReminderEnabled: (Boolean) -> Unit,
+    reminderTime: String,
+    onPickTime: () -> Unit,
     onClearHistory: () -> Unit,
     onBack: () -> Unit
 ) {
@@ -54,6 +58,11 @@ fun SettingsScreen(
         verticalArrangement = Arrangement.spacedBy(14.dp)
     ) {
         Text("Settings", style = MaterialTheme.typography.headlineSmall.copy(fontFamily = SerifHeadings))
+        Text(
+            "✓ Changes save automatically.",
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.primary
+        )
         Text("Usual feeling", style = MaterialTheme.typography.titleMedium)
         TONES.chunked(2).forEach { row ->
             Row(horizontalArrangement = Arrangement.spacedBy(10.dp), modifier = Modifier.fillMaxWidth()) {
@@ -111,6 +120,21 @@ fun SettingsScreen(
                         shape = RoundedCornerShape(16.dp)
                     ) { Text(th.replaceFirstChar { it.uppercase() }) }
                 }
+            }
+        }
+        Text("Daily reminder", style = MaterialTheme.typography.titleMedium)
+        Row(
+            horizontalArrangement = Arrangement.SpaceBetween,
+            modifier = Modifier.fillMaxWidth()
+        ) {
+            Text(if (reminderEnabled) "On • $reminderTime" else "Off")
+            OutlinedButton(onClick = { onReminderEnabled(!reminderEnabled) }) {
+                Text(if (reminderEnabled) "Turn off" else "Turn on")
+            }
+        }
+        if (reminderEnabled) {
+            OutlinedButton(onClick = onPickTime, modifier = Modifier.fillMaxWidth().height(54.dp), shape = RoundedCornerShape(18.dp)) {
+                Text("Change time ($reminderTime)")
             }
         }
         Text("Privacy", style = MaterialTheme.typography.titleMedium)
