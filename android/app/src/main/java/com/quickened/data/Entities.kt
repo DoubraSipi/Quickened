@@ -11,7 +11,8 @@ data class Session(
     val contentPreview: String,
     val durationSeconds: Int,
     val timestamp: String, // ISO 8601
-    val createdAt: String
+    val createdAt: String,
+    val isFavorite: Boolean = false
 )
 
 @Entity(tableName = "settings")

@@ -1,4 +1,12 @@
 [
-  {"title": "Strength for today", "text": "Be strong and courageous. The Lord your God is with you wherever you go. (Joshua 1:9)"},
-  {"title": "Keep going in grace", "text": "Let us run with endurance the race set before us, looking to Jesus. (Hebrews 12:1-2)"}
+  {"title": "Strength for today", "type": "reflection", "text": "Be strong and courageous. The Lord your God is with you wherever you go. Lift your head; this walk is worship. (Joshua 1:9)"},
+  {"title": "Keep going in grace", "type": "reflection", "text": "Let us run with endurance the race set before us, looking to Jesus. One faithful step at a time; heaven cheers you on. (Hebrews 12:1-2)"},
+  {"title": "I can do all things", "type": "verse", "text": "I can do all things through him who strengthens me. (Philippians 4:13)"},
+  {"title": "Rise up", "type": "reflection", "text": "This is the day the Lord has made; rejoice and be glad in it. Shake off yesterday's heaviness and walk into today with hope. (Psalm 118:24)"},
+  {"title": "Wait on the Lord", "type": "verse", "text": "But they who wait for the Lord shall renew their strength; they shall mount up with wings like eagles; they shall run and not be weary; they shall walk and not faint. (Isaiah 40:31)"},
+  {"title": "You are equipped", "type": "reflection", "text": "God has not given you a spirit of fear but of power and love and self-control. The task ahead is smaller than the Christ within you. (2 Timothy 1:7)"},
+  {"title": "Be of good courage", "type": "verse", "text": "Be strong, and let your heart take courage, all you who wait for the Lord! (Psalm 31:24)"},
+  {"title": "Morning mercies", "type": "reflection", "text": "His mercies are new every morning; great is his faithfulness. Yesterday's failures do not define today's walk. Begin again with joy. (Lamentations 3:22-23)"},
+  {"title": "The joy of the Lord", "type": "verse", "text": "The joy of the Lord is your strength. (Nehemiah 8:10)"},
+  {"title": "Press on", "type": "reflection", "text": "Forgetting what lies behind and straining forward to what lies ahead, press on toward the goal. Every step in faith counts. (Philippians 3:13-14)"}
 ]

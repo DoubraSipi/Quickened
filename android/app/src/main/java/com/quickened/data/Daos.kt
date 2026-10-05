@@ -13,6 +13,12 @@ interface SessionDao {
     @Query("SELECT * FROM sessions ORDER BY timestamp DESC")
     suspend fun getAll(): List<Session>
 
+    @Query("SELECT * FROM sessions WHERE tone = :tone ORDER BY timestamp DESC")
+    suspend fun byTone(tone: String): List<Session>
+
+    @Query("UPDATE sessions SET isFavorite = :fav WHERE id = :id")
+    suspend fun setFavorite(id: String, fav: Boolean)
+
     @Query("DELETE FROM sessions")
     suspend fun clearAll()
 }

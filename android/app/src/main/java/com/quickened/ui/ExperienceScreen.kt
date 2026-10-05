@@ -34,7 +34,7 @@ fun ExperienceScreen(
 ) {
     LaunchedEffect(reflection) {
         tts.onDone = onDone
-        tts.speak(reflection.text)
+        tts.speak(reflection.text, if (activity == "walking") 1.0f else 0.92f)
     }
     DisposableEffect(Unit) {
         onDispose { tts.onDone = null }
@@ -48,7 +48,7 @@ fun ExperienceScreen(
         Text(reflection.text, style = MaterialTheme.typography.bodyLarge)
         Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth()) {
             Button(
-                onClick = { tts.speak(reflection.text) },
+                onClick = { tts.speak(reflection.text, if (activity == "walking") 1.0f else 0.92f) },
                 modifier = Modifier.weight(1f).height(56.dp),
                 colors = ButtonDefaults.buttonColors(containerColor = Teal)
             ) { Text("Replay") }

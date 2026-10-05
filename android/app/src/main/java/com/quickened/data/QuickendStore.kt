@@ -32,5 +32,10 @@ class QuickendStore(
 
     suspend fun getSessions(): List<Session> = db.sessionDao().getAll()
 
+    suspend fun getSessionsByTone(tone: String): List<Session> =
+        if (tone == "all") db.sessionDao().getAll() else db.sessionDao().byTone(tone)
+
+    suspend fun setFavorite(id: String, fav: Boolean) = db.sessionDao().setFavorite(id, fav)
+
     suspend fun clearHistory() = db.sessionDao().clearAll()
 }
