@@ -25,6 +25,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.quickened.activity.ActivityDetector
 import com.quickened.content.Reflection
 import com.quickened.tts.TtsManager
 
@@ -37,9 +38,10 @@ fun ExperienceScreen(
     onDone: () -> Unit,
     onStop: () -> Unit
 ) {
+    val rate = ActivityDetector.speechRate(activity)
     LaunchedEffect(reflection) {
         tts.onDone = onDone
-        tts.speak(reflection.text, if (activity == "walking") 1.0f else 0.92f)
+        tts.speak(reflection.text, rate)
     }
     DisposableEffect(Unit) {
         onDispose { tts.onDone = null }
@@ -84,7 +86,7 @@ fun ExperienceScreen(
         Spacer(Modifier.height(8.dp))
         Row(horizontalArrangement = Arrangement.spacedBy(10.dp), modifier = Modifier.fillMaxWidth()) {
             Button(
-                onClick = { tts.speak(reflection.text, if (activity == "walking") 1.0f else 0.92f) },
+                onClick = { tts.speak(reflection.text, rate) },
                 modifier = Modifier.weight(1f).height(56.dp),
                 shape = RoundedCornerShape(18.dp)
             ) { Text("↻ Replay") }

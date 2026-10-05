@@ -2,6 +2,7 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
     <!-- No INTERNET permission: offline-first per PRD -->
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+    <uses-permission android:name="android.permission.ACTIVITY_RECOGNITION" />
     <application
         android:allowBackup="true"
         android:label="Quickened"
@@ -28,6 +29,13 @@
             android:exported="false">
             <intent-filter>
                 <action android:name="com.quickened.DAILY_REMINDER" />
+            </intent-filter>
+        </receiver>
+        <receiver
+            android:name=".activity.ActivityReceiver"
+            android:exported="false">
+            <intent-filter>
+                <action android:name="com.quickened.ACTIVITY_TRANSITION" />
             </intent-filter>
         </receiver>
     </application>

@@ -26,6 +26,7 @@ import com.quickened.content.StatsCalculator
 import com.quickened.data.AppDatabase
 import com.quickened.data.QuickendStore
 import com.quickened.data.Session
+import com.quickened.activity.ActivityDetector
 import com.quickened.reminder.ReminderScheduler
 import com.quickened.tts.TtsManager
 import com.quickened.ui.ExperienceScreen
@@ -39,10 +40,19 @@ class MainActivity : ComponentActivity() {
     private lateinit var store: QuickendStore
     private lateinit var tts: TtsManager
     private var themeState = mutableStateOf("system")
+    private var activityState = mutableStateOf("walking")
 
     private val notifPermission = registerForActivityResult(
         ActivityResultContracts.RequestPermission()
     ) { }
+
+    private val activityPermission = registerForActivityResult(
+        ActivityResultContracts.RequestPermission()
+    ) { granted ->
+        if (granted) ActivityDetector.start(this) { detected ->
+            runOnUiThread { activityState.value = detected }
+        }
+    }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -59,6 +69,18 @@ class MainActivity : ComponentActivity() {
                 Surface(modifier = Modifier.fillMaxSize()) {
                     QuickenedApp(theme = theme, onTheme = { themeState.value = it })
                 }
+            }
+        }
+    }
+
+    private fun ensureActivityDetection() {
+        if (Build.VERSION.SDK_INT >= 29 &&
+            checkSelfPermission("android.permission.ACTIVITY_RECOGNITION") != PackageManager.PERMISSION_GRANTED
+        ) {
+            activityPermission.launch("android.permission.ACTIVITY_RECOGNITION")
+        } else {
+            ActivityDetector.start(this) { detected ->
+                runOnUiThread { activityState.value = detected }
             }
         }
     }
@@ -80,7 +102,10 @@ class MainActivity : ComponentActivity() {
         val scope = rememberCoroutineScope()
         var screen by remember { mutableStateOf<Screen>(Screen.Home) }
         var tone by remember { mutableStateOf("gentle") }
-        var activity by remember { mutableStateOf("walking") }
+        var manualActivity by remember { mutableStateOf("walking") }
+        var autoDetect by remember { mutableStateOf(false) }
+        val detected by activityState
+        val activity = if (autoDetect && detected != "unknown") detected else manualActivity
         var sessions by remember { mutableStateOf<List<Session>>(emptyList()) }
         var filter by remember { mutableStateOf("all") }
         var voice by remember { mutableStateOf("") }
@@ -121,7 +146,9 @@ class MainActivity : ComponentActivity() {
             reminderOn = st.reminderEnabled
             reminderHour = st.reminderHour
             reminderMinute = st.reminderMinute
+            autoDetect = st.autoDetectActivity
             if (reminderOn) ReminderScheduler.schedule(this@MainActivity, reminderHour, reminderMinute)
+            if (autoDetect) ensureActivityDetection()
             if (voice.isNotEmpty()) tts.setVoice(voice)
             for (i in 0 until 6) {
                 voices = tts.availableVoices()
@@ -147,7 +174,7 @@ class MainActivity : ComponentActivity() {
         when (val s = screen) {
             is Screen.Home -> HomeScreen(
                 tone = tone, onTone = { tone = it; persistSettings() },
-                activity = activity, onActivity = { activity = it },
+                activity = activity, onActivity = { manualActivity = it },
                 onStart = {
                     val r = ContentRepository.random(this@MainActivity, tone)
                     screen = Screen.Experience(r, tone, activity, System.currentTimeMillis())
@@ -205,6 +232,15 @@ class MainActivity : ComponentActivity() {
                     scope.launch {
                         store.saveSettings(store.getSettings().copy(theme = it))
                     }
+                },
+                autoDetect = autoDetect,
+                onAutoDetect = { on ->
+                    autoDetect = on
+                    scope.launch {
+                        store.saveSettings(store.getSettings().copy(autoDetectActivity = on))
+                    }
+                    if (on) ensureActivityDetection()
+                    else ActivityDetector.stop(this@MainActivity)
                 },
                 reminderEnabled = reminderOn,
                 onReminderEnabled = { on ->

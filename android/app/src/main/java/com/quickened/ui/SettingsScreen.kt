@@ -48,6 +48,8 @@ fun SettingsScreen(
     onReminderEnabled: (Boolean) -> Unit,
     reminderTime: String,
     onPickTime: () -> Unit,
+    autoDetect: Boolean,
+    onAutoDetect: (Boolean) -> Unit,
     onClearHistory: () -> Unit,
     onBack: () -> Unit
 ) {
@@ -135,6 +137,16 @@ fun SettingsScreen(
         if (reminderEnabled) {
             OutlinedButton(onClick = onPickTime, modifier = Modifier.fillMaxWidth().height(54.dp), shape = RoundedCornerShape(18.dp)) {
                 Text("Change time ($reminderTime)")
+            }
+        }
+        Text("Activity", style = MaterialTheme.typography.titleMedium)
+        Row(
+            horizontalArrangement = Arrangement.SpaceBetween,
+            modifier = Modifier.fillMaxWidth()
+        ) {
+            Text(if (autoDetect) "Auto-detect on" else "Manual toggle")
+            OutlinedButton(onClick = { onAutoDetect(!autoDetect) }) {
+                Text(if (autoDetect) "Use manual" else "Auto-detect")
             }
         }
         Text("Privacy", style = MaterialTheme.typography.titleMedium)
