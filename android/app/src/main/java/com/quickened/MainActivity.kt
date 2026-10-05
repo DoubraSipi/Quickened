@@ -72,11 +72,12 @@ class MainActivity : ComponentActivity() {
         var tone by remember { mutableStateOf("gentle") }
         var activity by remember { mutableStateOf("walking") }
         var sessions by remember { mutableStateOf<List<Session>>(emptyList()) }
-        var lastTone by remember { mutableStateOf<String?>(null) }
         var filter by remember { mutableStateOf("all") }
         var voice by remember { mutableStateOf("") }
         var voices by remember { mutableStateOf<List<String>>(emptyList()) }
-        var statsLine by remember { mutableStateOf("A quiet moment with the Lord is waiting for you today.") }
+        var statsLine by remember { mutableStateOf("Begin your first moment with God today.") }
+        var streakLine by remember { mutableStateOf("Day 1 — a new rhythm begins.") }
+        var verseOfDay by remember { mutableStateOf<Reflection?>(null) }
 
         fun persistSettings() {
             scope.launch {
@@ -87,7 +88,11 @@ class MainActivity : ComponentActivity() {
         fun refreshAll() {
             scope.launch {
                 val all = store.getSessions()
-                statsLine = StatsCalculator.encouragement(StatsCalculator.compute(all))
+                val stats = StatsCalculator.compute(all)
+                statsLine = StatsCalculator.encouragement(stats)
+                streakLine = if (stats.streakDays >= 2) "🔥 ${stats.streakDays}-day rhythm"
+                else if (stats.totalSessions > 0) "🌱 Rhythm started — day 1"
+                else "🌱 Day 1 — a new rhythm begins."
                 sessions = if (filter == "favorites") all.filter { it.isFavorite }
                 else store.getSessionsByTone(filter)
             }
@@ -105,6 +110,10 @@ class MainActivity : ComponentActivity() {
                 if (voices.isNotEmpty()) break
                 kotlinx.coroutines.delay(1000)
             }
+            val verses = ContentRepository.load(this@MainActivity, "gentle")
+            if (verses.isNotEmpty()) {
+                verseOfDay = verses[java.time.LocalDate.now().dayOfYear % verses.size]
+            }
             refreshAll()
         }
 
@@ -112,7 +121,6 @@ class MainActivity : ComponentActivity() {
             val secs = ((System.currentTimeMillis() - exp.startMs) / 1000).toInt().coerceAtLeast(1)
             scope.launch {
                 store.addSession(exp.tone, exp.activity, exp.reflection.title, secs)
-                lastTone = exp.tone
                 refreshAll()
                 screen = Screen.Home
             }
@@ -128,7 +136,8 @@ class MainActivity : ComponentActivity() {
                 },
                 onHistory = { refreshAll(); screen = Screen.History },
                 onSettings = { screen = Screen.Settings },
-                lastTone = lastTone,
+                verseOfDay = verseOfDay,
+                streakLine = streakLine,
                 statsLine = statsLine
             )
             is Screen.Experience -> ExperienceScreen(
