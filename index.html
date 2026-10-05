@@ -4,12 +4,47 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Quickened</title>
-<style>body{font-family:Inter,system-ui,sans-serif;background:#F8FAFC;color:#0F172A;max-width:640px;margin:40px auto;padding:0 20px;line-height:1.6}a{color:#0D9488}.btn{display:inline-block;background:#0D9488;color:#fff!important;padding:14px 28px;border-radius:999px;font-weight:700;text-decoration:none;margin:8px 8px 8px 0}</style>
+<style>
+*{box-sizing:border-box}body{margin:0;font-family:Inter,system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;background:#F8FAFC;color:#0F172A;line-height:1.6}
+.hero{position:relative;max-width:960px;margin:0 auto;overflow:hidden;border-radius:0 0 24px 24px;background:#0F766E}
+.slides{display:flex;transition:transform .6s ease}
+.slide{position:relative;min-width:100%;height:52vw;max-height:460px;min-height:280px;background:linear-gradient(135deg,#0D9488,#0F172A)}
+.slide img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover}
+.caption{position:absolute;left:0;right:0;bottom:0;padding:56px 28px 28px;background:linear-gradient(transparent,rgba(0,0,0,.72));color:#fff}
+.caption h2{margin:0 0 6px;font-size:1.5rem}.caption p{margin:0;opacity:.92}
+.nav{position:absolute;top:50%;transform:translateY(-50%);border:0;background:rgba(255,255,255,.85);width:44px;height:44px;border-radius:50%;font-size:1.2rem;cursor:pointer}
+.prev{left:12px}.next{right:12px}
+.dots{position:absolute;bottom:12px;left:0;right:0;text-align:center}
+.dots button{border:0;width:10px;height:10px;border-radius:50%;margin:0 4px;background:rgba(255,255,255,.5);cursor:pointer}
+.dots button.on{background:#fff}
+.wrap{max-width:640px;margin:0 auto;padding:32px 20px 64px;text-align:center}
+.btn{display:inline-block;background:#0D9488;color:#fff!important;padding:14px 28px;border-radius:999px;font-weight:700;text-decoration:none;margin:8px 8px 8px 0}
+.ghost{background:#fff;color:#0F766E!important;border:2px solid #0D9488}
+a{color:#0D9488}
+</style>
 </head>
 <body>
+<div class="hero" role="region" aria-label="Scripture moments">
+<div class="slides" id="slides">
+<div class="slide"><img src="https://picsum.photos/id/1015/1200/600" alt="River through mountains at dawn" loading="lazy" onerror="this.remove()"><div class="caption"><h2>Be still, and know.</h2><p>Psalm 46:10 — short spoken moments for ordinary days.</p></div></div>
+<div class="slide"><img src="https://picsum.photos/id/1018/1200/600" alt="Still mountain lake" loading="lazy" onerror="this.remove()"><div class="caption"><h2>Walk with Him.</h2><p>Turn commutes and walks into prayer.</p></div></div>
+<div class="slide"><img src="https://picsum.photos/id/1036/1200/600" alt="Sunlit mountain peaks" loading="lazy" onerror="this.remove()"><div class="caption"><h2>Strength for today.</h2><p>Gentle, encouraging, contemplative, challenging tones.</p></div></div>
+</div>
+<button class="nav prev" onclick="go(-1)" aria-label="Previous">‹</button>
+<button class="nav next" onclick="go(1)" aria-label="Next">›</button>
+<div class="dots" id="dots"></div>
+</div>
+<div class="wrap">
 <h1>Quickened</h1>
 <p>Offline-first Christian app — spoken Scripture for ordinary moments.</p>
-<p><a class="btn" href="app.html">Open app preview</a> <a class="btn" href="design.html">Design preview</a></p>
+<p><a class="btn" href="app.html">Open app preview</a> <a class="btn ghost" href="design.html">Design preview</a></p>
 <p><a href="https://github.com/DoubraSipi/Quickened">GitHub repo</a></p>
+</div>
+<script>
+let i=0;const s=document.getElementById('slides'),n=s.children.length,d=document.getElementById('dots');
+for(let k=0;k<n;k++){const b=document.createElement('button');b.setAttribute('aria-label','Slide '+(k+1));b.onclick=()=>{i=k;show()};d.appendChild(b)}
+function show(){s.style.transform='translateX(-'+i*100+'%)';[...d.children].forEach((b,k)=>b.classList.toggle('on',k===i))}
+function go(x){i=(i+x+n)%n;show()}show();setInterval(()=>{i=(i+1)%n;show()},6000);
+</script>
 </body>
 </html>
