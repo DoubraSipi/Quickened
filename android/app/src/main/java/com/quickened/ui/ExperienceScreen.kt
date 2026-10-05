@@ -3,25 +3,30 @@ package com.quickened.ui
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Button
-import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import com.quickened.content.Reflection
 import com.quickened.tts.TtsManager
-
-private val Teal = Color(0xFF0D9488)
 
 @Composable
 fun ExperienceScreen(
@@ -40,22 +45,54 @@ fun ExperienceScreen(
         onDispose { tts.onDone = null }
     }
     Column(
-        modifier = Modifier.fillMaxSize().padding(24.dp),
-        verticalArrangement = Arrangement.spacedBy(12.dp)
+        modifier = Modifier.fillMaxSize().padding(horizontal = 28.dp, vertical = 24.dp)
+            .verticalScroll(rememberScrollState()),
+        verticalArrangement = Arrangement.spacedBy(16.dp),
+        horizontalAlignment = Alignment.CenterHorizontally
     ) {
-        Text("$tone • $activity", style = MaterialTheme.typography.labelLarge)
-        Text(reflection.title, style = MaterialTheme.typography.headlineSmall)
-        Text(reflection.text, style = MaterialTheme.typography.bodyLarge)
-        Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth()) {
+        Text(
+            "$tone • $activity",
+            style = MaterialTheme.typography.labelLarge,
+            color = MaterialTheme.colorScheme.primary
+        )
+        Text(
+            "♪ Listening…",
+            style = MaterialTheme.typography.bodyMedium,
+            color = MaterialTheme.colorScheme.secondary
+        )
+        Card(
+            shape = RoundedCornerShape(24.dp),
+            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+            modifier = Modifier.fillMaxWidth()
+        ) {
+            Column(modifier = Modifier.padding(24.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                Text(
+                    reflection.title,
+                    style = MaterialTheme.typography.headlineSmall.copy(fontFamily = SerifHeadings),
+                    textAlign = TextAlign.Center,
+                    modifier = Modifier.fillMaxWidth()
+                )
+                Text(
+                    reflection.text,
+                    style = MaterialTheme.typography.bodyLarge.copy(
+                        fontFamily = SerifHeadings, fontSize = 19.sp, lineHeight = 29.sp
+                    ),
+                    textAlign = TextAlign.Center
+                )
+            }
+        }
+        Spacer(Modifier.height(8.dp))
+        Row(horizontalArrangement = Arrangement.spacedBy(10.dp), modifier = Modifier.fillMaxWidth()) {
             Button(
                 onClick = { tts.speak(reflection.text, if (activity == "walking") 1.0f else 0.92f) },
                 modifier = Modifier.weight(1f).height(56.dp),
-                colors = ButtonDefaults.buttonColors(containerColor = Teal)
-            ) { Text("Replay") }
+                shape = RoundedCornerShape(18.dp)
+            ) { Text("↻ Replay") }
             OutlinedButton(
                 onClick = { tts.stop(); onStop() },
-                modifier = Modifier.weight(1f).height(56.dp)
-            ) { Text("Stop") }
+                modifier = Modifier.weight(1f).height(56.dp),
+                shape = RoundedCornerShape(18.dp)
+            ) { Text("■ Stop") }
         }
     }
 }

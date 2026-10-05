@@ -10,7 +10,9 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
@@ -33,27 +35,49 @@ fun HistoryScreen(
     onClear: () -> Unit,
     onBack: () -> Unit
 ) {
-    Column(modifier = Modifier.fillMaxSize().padding(24.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-        Text("History", style = MaterialTheme.typography.headlineMedium)
+    Column(modifier = Modifier.fillMaxSize().padding(horizontal = 24.dp, vertical = 20.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+        Text("Your moments", style = MaterialTheme.typography.headlineSmall.copy(fontFamily = SerifHeadings))
+        Text("${sessions.size} kept close", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.primary)
         LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             items(HISTORY_FILTERS) { f ->
-                FilterChip(selected = f == filter, onClick = { onFilter(f) }, label = { Text(f) })
+                FilterChip(
+                    selected = f == filter,
+                    onClick = { onFilter(f) },
+                    label = { Text(f.replaceFirstChar { it.uppercase() }) },
+                    shape = RoundedCornerShape(16.dp)
+                )
             }
         }
         if (sessions.isEmpty()) {
-            Text("No sessions yet.")
+            Card(shape = RoundedCornerShape(20.dp), modifier = Modifier.fillMaxWidth()) {
+                Text(
+                    "No moments yet. Begin your first one from home.",
+                    modifier = Modifier.padding(20.dp),
+                    style = MaterialTheme.typography.bodyLarge.copy(fontFamily = SerifHeadings)
+                )
+            }
         } else {
-            LazyColumn(verticalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.weight(1f)) {
+            LazyColumn(verticalArrangement = Arrangement.spacedBy(10.dp), modifier = Modifier.weight(1f)) {
                 items(sessions) { s ->
-                    Card(modifier = Modifier.fillMaxWidth()) {
-                        Column(modifier = Modifier.padding(12.dp)) {
-                            Text(s.contentPreview, style = MaterialTheme.typography.titleSmall)
-                            Text("${s.tone} • ${s.activity} • ${s.durationSeconds}s",
-                                style = MaterialTheme.typography.bodySmall)
+                    Card(
+                        shape = RoundedCornerShape(20.dp),
+                        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Column(modifier = Modifier.padding(16.dp)) {
+                            Text(
+                                s.contentPreview,
+                                style = MaterialTheme.typography.titleMedium.copy(fontFamily = SerifHeadings)
+                            )
+                            Text(
+                                "${s.tone.replaceFirstChar { it.uppercase() }} • ${s.activity} • ${s.durationSeconds}s",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.primary
+                            )
                             Row {
-                                TextButton(onClick = { onReplay(s) }) { Text("Replay") }
+                                TextButton(onClick = { onReplay(s) }) { Text("↻ Replay") }
                                 TextButton(onClick = { onToggleFavorite(s) }) {
-                                    Text(if (s.isFavorite) "★ Unfavorite" else "☆ Favorite")
+                                    Text(if (s.isFavorite) "★ Kept" else "☆ Keep")
                                 }
                             }
                         }
@@ -61,7 +85,7 @@ fun HistoryScreen(
                 }
             }
         }
-        OutlinedButton(onClick = onClear, modifier = Modifier.fillMaxWidth().height(56.dp)) { Text("Clear history") }
-        OutlinedButton(onClick = onBack, modifier = Modifier.fillMaxWidth().height(56.dp)) { Text("Back") }
+        OutlinedButton(onClick = onClear, modifier = Modifier.fillMaxWidth().height(54.dp), shape = RoundedCornerShape(18.dp)) { Text("Clear all") }
+        OutlinedButton(onClick = onBack, modifier = Modifier.fillMaxWidth().height(54.dp), shape = RoundedCornerShape(18.dp)) { Text("← Home") }
     }
 }

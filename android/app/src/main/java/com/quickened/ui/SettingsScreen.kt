@@ -8,9 +8,12 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.ExposedDropdownMenuBox
@@ -25,10 +28,9 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 
-private val Teal = Color(0xFF0D9488)
 val THEMES = listOf("system", "light", "dark")
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -47,25 +49,27 @@ fun SettingsScreen(
 ) {
     var voiceExpanded by remember { mutableStateOf(false) }
     Column(
-        modifier = Modifier.fillMaxSize().padding(24.dp).verticalScroll(rememberScrollState()),
-        verticalArrangement = Arrangement.spacedBy(12.dp)
+        modifier = Modifier.fillMaxSize().padding(horizontal = 24.dp, vertical = 20.dp)
+            .verticalScroll(rememberScrollState()),
+        verticalArrangement = Arrangement.spacedBy(14.dp)
     ) {
-        Text("Settings", style = MaterialTheme.typography.headlineMedium)
-        Text("Default tone", style = MaterialTheme.typography.titleMedium)
+        Text("Settings", style = MaterialTheme.typography.headlineSmall.copy(fontFamily = SerifHeadings))
+        Text("Usual feeling", style = MaterialTheme.typography.titleMedium)
         TONES.chunked(2).forEach { row ->
-            Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth()) {
+            Row(horizontalArrangement = Arrangement.spacedBy(10.dp), modifier = Modifier.fillMaxWidth()) {
                 row.forEach { t ->
                     if (t == preferredTone) {
                         Button(
                             onClick = { onTone(t) },
-                            modifier = Modifier.weight(1f).height(56.dp),
-                            colors = ButtonDefaults.buttonColors(containerColor = Teal)
-                        ) { Text(t) }
+                            modifier = Modifier.weight(1f).height(54.dp),
+                            shape = RoundedCornerShape(16.dp)
+                        ) { Text(t.replaceFirstChar { it.uppercase() }, fontWeight = FontWeight.SemiBold) }
                     } else {
                         OutlinedButton(
                             onClick = { onTone(t) },
-                            modifier = Modifier.weight(1f).height(56.dp)
-                        ) { Text(t) }
+                            modifier = Modifier.weight(1f).height(54.dp),
+                            shape = RoundedCornerShape(16.dp)
+                        ) { Text(t.replaceFirstChar { it.uppercase() }) }
                     }
                 }
             }
@@ -77,7 +81,8 @@ fun SettingsScreen(
                 onValueChange = {},
                 readOnly = true,
                 trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = voiceExpanded) },
-                modifier = Modifier.fillMaxWidth().menuAnchor()
+                modifier = Modifier.fillMaxWidth().menuAnchor(),
+                shape = RoundedCornerShape(16.dp)
             )
             ExposedDropdownMenu(expanded = voiceExpanded, onDismissRequest = { voiceExpanded = false }) {
                 DropdownMenuItem(text = { Text("System default") }, onClick = { onVoice(""); voiceExpanded = false })
@@ -91,31 +96,38 @@ fun SettingsScreen(
             }
         }
         Text("Theme", style = MaterialTheme.typography.titleMedium)
-        Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth()) {
+        Row(horizontalArrangement = Arrangement.spacedBy(10.dp), modifier = Modifier.fillMaxWidth()) {
             THEMES.forEach { th ->
                 if (th == theme) {
                     Button(
                         onClick = { onTheme(th) },
-                        modifier = Modifier.weight(1f).height(56.dp),
-                        colors = ButtonDefaults.buttonColors(containerColor = Teal)
-                    ) { Text(th) }
+                        modifier = Modifier.weight(1f).height(54.dp),
+                        shape = RoundedCornerShape(16.dp)
+                    ) { Text(th.replaceFirstChar { it.uppercase() }, fontWeight = FontWeight.SemiBold) }
                 } else {
                     OutlinedButton(
                         onClick = { onTheme(th) },
-                        modifier = Modifier.weight(1f).height(56.dp)
-                    ) { Text(th) }
+                        modifier = Modifier.weight(1f).height(54.dp),
+                        shape = RoundedCornerShape(16.dp)
+                    ) { Text(th.replaceFirstChar { it.uppercase() }) }
                 }
             }
         }
         Text("Privacy", style = MaterialTheme.typography.titleMedium)
-        Text(
-            "Quickened works fully offline. No accounts, no analytics, no network requests. " +
-                "All preferences and history stay on this device. You can delete history at any time.",
-            style = MaterialTheme.typography.bodyMedium
-        )
-        OutlinedButton(onClick = onClearHistory, modifier = Modifier.fillMaxWidth().height(56.dp)) {
-            Text("Clear history")
+        Card(shape = RoundedCornerShape(20.dp)) {
+            Text(
+                "Quickened works fully offline. No accounts, no analytics, no network requests. " +
+                    "All preferences and moments stay on this device. You can delete them at any time.",
+                modifier = Modifier.padding(16.dp),
+                style = MaterialTheme.typography.bodyMedium
+            )
         }
-        OutlinedButton(onClick = onBack, modifier = Modifier.fillMaxWidth().height(56.dp)) { Text("Back") }
+        OutlinedButton(
+            onClick = onClearHistory,
+            modifier = Modifier.fillMaxWidth().height(54.dp),
+            shape = RoundedCornerShape(18.dp),
+            colors = ButtonDefaults.outlinedButtonColors(contentColor = MaterialTheme.colorScheme.error)
+        ) { Text("Clear all moments") }
+        OutlinedButton(onClick = onBack, modifier = Modifier.fillMaxWidth().height(54.dp), shape = RoundedCornerShape(18.dp)) { Text("← Home") }
     }
 }

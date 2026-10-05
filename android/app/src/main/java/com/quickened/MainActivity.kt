@@ -5,10 +5,7 @@ import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
-import androidx.compose.material3.darkColorScheme
-import androidx.compose.material3.lightColorScheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -17,7 +14,6 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
 import androidx.room.Room
 import com.quickened.content.ContentRepository
 import com.quickened.content.Reflection
@@ -29,11 +25,9 @@ import com.quickened.tts.TtsManager
 import com.quickened.ui.ExperienceScreen
 import com.quickened.ui.HistoryScreen
 import com.quickened.ui.HomeScreen
+import com.quickened.ui.QuickenedTheme
 import com.quickened.ui.SettingsScreen
 import kotlinx.coroutines.launch
-
-private val LightScheme = lightColorScheme(primary = Color(0xFF0D9488))
-private val DarkScheme = darkColorScheme(primary = Color(0xFF0D9488))
 
 class MainActivity : ComponentActivity() {
     private lateinit var store: QuickendStore
@@ -49,12 +43,9 @@ class MainActivity : ComponentActivity() {
         tts = TtsManager(this)
         setContent {
             val theme by themeState
-            val dark = when (theme) {
-                "light" -> false
-                "dark" -> true
-                else -> isSystemInDarkTheme()
-            }
-            MaterialTheme(colorScheme = if (dark) DarkScheme else LightScheme) {
+            val sysDark = androidx.compose.foundation.isSystemInDarkTheme()
+            val dark = theme == "dark" || (theme == "system" && sysDark)
+            QuickenedTheme(dark = dark) {
                 Surface(modifier = Modifier.fillMaxSize()) {
                     QuickenedApp(theme = theme, onTheme = { themeState.value = it })
                 }
