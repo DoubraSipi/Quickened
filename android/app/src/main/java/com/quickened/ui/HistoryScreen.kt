@@ -34,9 +34,12 @@ fun HistoryScreen(
     onToggleFavorite: (Session) -> Unit,
     onExport: () -> Unit,
     onClear: () -> Unit,
-    onBack: () -> Unit
+    onBack: () -> Unit,
+    onMenu: () -> Unit
 ) {
-    Column(modifier = Modifier.fillMaxSize().padding(horizontal = 24.dp, vertical = 20.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+    Column(modifier = Modifier.fillMaxSize()) {
+        DrawerTopBar(title = "History", onMenu = onMenu)
+    Column(modifier = Modifier.fillMaxSize().padding(horizontal = 24.dp, vertical = 12.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
         Text("Your moments", style = MaterialTheme.typography.headlineSmall.copy(fontFamily = SerifHeadings))
         Text("${sessions.size} kept close", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.primary)
         LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -89,5 +92,6 @@ fun HistoryScreen(
         OutlinedButton(onClick = onExport, modifier = Modifier.fillMaxWidth().height(54.dp), shape = RoundedCornerShape(18.dp)) { Text("⤴ Export as text") }
         OutlinedButton(onClick = onClear, modifier = Modifier.fillMaxWidth().height(54.dp), shape = RoundedCornerShape(18.dp)) { Text("Clear all") }
         OutlinedButton(onClick = onBack, modifier = Modifier.fillMaxWidth().height(54.dp), shape = RoundedCornerShape(18.dp)) { Text("← Home") }
+    }
     }
 }

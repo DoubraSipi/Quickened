@@ -44,18 +44,29 @@ fun SettingsScreen(
     onDownloadVoices: () -> Unit,
     theme: String,
     onTheme: (String) -> Unit,
+    translation: String,
+    onTranslation: (String) -> Unit,
     reminderEnabled: Boolean,
     onReminderEnabled: (Boolean) -> Unit,
     reminderTime: String,
     onPickTime: () -> Unit,
     autoDetect: Boolean,
     onAutoDetect: (Boolean) -> Unit,
+    syncEnabled: Boolean,
+    onSyncEnabled: (Boolean) -> Unit,
+    syncEndpoint: String,
+    onSyncEndpoint: (String) -> Unit,
+    lastSynced: String,
+    onSyncNow: () -> Unit,
     onClearHistory: () -> Unit,
-    onBack: () -> Unit
+    onBack: () -> Unit,
+    onMenu: () -> Unit
 ) {
     var voiceExpanded by remember { mutableStateOf(false) }
+    Column(modifier = Modifier.fillMaxSize()) {
+        DrawerTopBar(title = "Settings", onMenu = onMenu)
     Column(
-        modifier = Modifier.fillMaxSize().padding(horizontal = 24.dp, vertical = 20.dp)
+        modifier = Modifier.fillMaxSize().padding(horizontal = 24.dp, vertical = 12.dp)
             .verticalScroll(rememberScrollState()),
         verticalArrangement = Arrangement.spacedBy(14.dp)
     ) {
@@ -124,6 +135,24 @@ fun SettingsScreen(
                 }
             }
         }
+        Text("Bible wording (verses)", style = MaterialTheme.typography.titleMedium)
+        Row(horizontalArrangement = Arrangement.spacedBy(10.dp), modifier = Modifier.fillMaxWidth()) {
+            listOf("simple", "kjv").forEach { tr ->
+                if (tr == translation) {
+                    Button(
+                        onClick = { onTranslation(tr) },
+                        modifier = Modifier.weight(1f).height(54.dp),
+                        shape = RoundedCornerShape(16.dp)
+                    ) { Text(tr.replaceFirstChar { it.uppercase() }, fontWeight = FontWeight.SemiBold) }
+                } else {
+                    OutlinedButton(
+                        onClick = { onTranslation(tr) },
+                        modifier = Modifier.weight(1f).height(54.dp),
+                        shape = RoundedCornerShape(16.dp)
+                    ) { Text(tr.replaceFirstChar { it.uppercase() }) }
+                }
+            }
+        }
         Text("Daily reminder", style = MaterialTheme.typography.titleMedium)
         Row(
             horizontalArrangement = Arrangement.SpaceBetween,
@@ -149,6 +178,38 @@ fun SettingsScreen(
                 Text(if (autoDetect) "Use manual" else "Auto-detect")
             }
         }
+        Text("Cloud backup (optional)", style = MaterialTheme.typography.titleMedium)
+        Row(
+            horizontalArrangement = Arrangement.SpaceBetween,
+            modifier = Modifier.fillMaxWidth()
+        ) {
+            Text(if (syncEnabled) "On" else "Off")
+            OutlinedButton(onClick = { onSyncEnabled(!syncEnabled) }) {
+                Text(if (syncEnabled) "Turn off" else "Turn on")
+            }
+        }
+        if (syncEnabled) {
+            var draft by remember { mutableStateOf(syncEndpoint) }
+            TextField(
+                value = draft,
+                onValueChange = { draft = it },
+                label = { Text("Sync URL (your Netlify function)") },
+                modifier = Modifier.fillMaxWidth(),
+                shape = RoundedCornerShape(16.dp),
+                singleLine = true
+            )
+            OutlinedButton(
+                onClick = { onSyncEndpoint(draft) },
+                modifier = Modifier.fillMaxWidth().height(54.dp),
+                shape = RoundedCornerShape(18.dp)
+            ) { Text("Save URL") }
+            if (lastSynced.isNotEmpty()) Text("Last synced: $lastSynced")
+            OutlinedButton(
+                onClick = onSyncNow,
+                modifier = Modifier.fillMaxWidth().height(54.dp),
+                shape = RoundedCornerShape(18.dp)
+            ) { Text("⤴ Sync now") }
+        }
         Text("Privacy", style = MaterialTheme.typography.titleMedium)
         Card(shape = RoundedCornerShape(20.dp)) {
             Text(
@@ -165,5 +226,6 @@ fun SettingsScreen(
             colors = ButtonDefaults.outlinedButtonColors(contentColor = MaterialTheme.colorScheme.error)
         ) { Text("Clear all moments") }
         OutlinedButton(onClick = onBack, modifier = Modifier.fillMaxWidth().height(54.dp), shape = RoundedCornerShape(18.dp)) { Text("← Home") }
+    }
     }
 }

@@ -21,6 +21,7 @@ import androidx.compose.ui.Modifier
 import androidx.room.Room
 import com.quickened.content.ContentRepository
 import com.quickened.content.ExportHelper
+import com.quickened.content.FreshWord
 import com.quickened.content.Reflection
 import com.quickened.content.StatsCalculator
 import com.quickened.data.AppDatabase
@@ -28,10 +29,16 @@ import com.quickened.data.QuickendStore
 import com.quickened.data.Session
 import com.quickened.activity.ActivityDetector
 import com.quickened.reminder.ReminderScheduler
+import com.quickened.sync.SyncManager
 import com.quickened.tts.TtsManager
+import androidx.compose.material3.DrawerValue
+import androidx.compose.material3.ModalNavigationDrawer
+import androidx.compose.material3.rememberDrawerState
+import com.quickened.ui.DrawerAction
 import com.quickened.ui.ExperienceScreen
 import com.quickened.ui.HistoryScreen
 import com.quickened.ui.HomeScreen
+import com.quickened.ui.QuickenedDrawer
 import com.quickened.ui.QuickenedTheme
 import com.quickened.ui.SettingsScreen
 import kotlinx.coroutines.launch
@@ -85,6 +92,12 @@ class MainActivity : ComponentActivity() {
         }
     }
 
+    private fun toast(msg: String) {
+        runOnUiThread {
+            android.widget.Toast.makeText(this, msg, android.widget.Toast.LENGTH_SHORT).show()
+        }
+    }
+
     override fun onDestroy() {
         tts.shutdown()
         super.onDestroy()
@@ -117,6 +130,11 @@ class MainActivity : ComponentActivity() {
         var reminderHour by remember { mutableStateOf(7) }
         var reminderMinute by remember { mutableStateOf(0) }
         val reminderLabel = "%02d:%02d".format(reminderHour, reminderMinute)
+        var syncOn by remember { mutableStateOf(false) }
+        var syncUrl by remember { mutableStateOf("") }
+        var lastSynced by remember { mutableStateOf("") }
+        var syncing by remember { mutableStateOf(false) }
+        var translation by remember { mutableStateOf("simple") }
 
         fun persistSettings() {
             scope.launch {
@@ -147,6 +165,10 @@ class MainActivity : ComponentActivity() {
             reminderHour = st.reminderHour
             reminderMinute = st.reminderMinute
             autoDetect = st.autoDetectActivity
+            syncOn = st.syncEnabled
+            syncUrl = st.syncEndpoint
+            lastSynced = st.lastSyncedAt
+            translation = st.translation.ifEmpty { "simple" }
             if (reminderOn) ReminderScheduler.schedule(this@MainActivity, reminderHour, reminderMinute)
             if (autoDetect) ensureActivityDetection()
             if (voice.isNotEmpty()) tts.setVoice(voice)
@@ -155,11 +177,15 @@ class MainActivity : ComponentActivity() {
                 if (voices.isNotEmpty()) break
                 kotlinx.coroutines.delay(1000)
             }
-            val verses = ContentRepository.load(this@MainActivity, "gentle")
+            val verses = ContentRepository.load(this@MainActivity, "gentle", translation)
             if (verses.isNotEmpty()) {
                 verseOfDay = verses[java.time.LocalDate.now().dayOfYear % verses.size]
             }
             refreshAll()
+            if (intent?.getBooleanExtra("begin_moment", false) == true) {
+                val r = ContentRepository.random(this@MainActivity, tone, translation)
+                screen = Screen.Experience(r, tone, activity, System.currentTimeMillis())
+            }
         }
 
         fun finishExperience(exp: Screen.Experience) {
@@ -171,22 +197,81 @@ class MainActivity : ComponentActivity() {
             }
         }
 
+        val drawer = rememberDrawerState(androidx.compose.material3.DrawerValue.Closed)
+        fun openMenu() {
+            scope.launch { drawer.open() }
+        }
+        fun closeMenu() {
+            scope.launch { drawer.close() }
+        }
+        fun shareAll() {
+            scope.launch {
+                ExportHelper.share(this@MainActivity, store.getSessions())
+            }
+        }
+        fun doAction(a: DrawerAction) {
+            closeMenu()
+            when (a) {
+                is DrawerAction.Home -> screen = Screen.Home
+                is DrawerAction.Begin -> {
+                    val r = ContentRepository.random(this@MainActivity, tone, translation)
+                    screen = Screen.Experience(r, tone, activity, System.currentTimeMillis())
+                }
+                is DrawerAction.Fresh -> {
+                    val r = FreshWord.compose(this@MainActivity, tone, activity, translation)
+                    screen = Screen.Experience(r, tone, activity, System.currentTimeMillis())
+                }
+                is DrawerAction.History -> { refreshAll(); screen = Screen.History }
+                is DrawerAction.Favorites -> { filter = "favorites"; refreshAll(); screen = Screen.History }
+                is DrawerAction.Export -> shareAll()
+                is DrawerAction.Reminder -> screen = Screen.Settings
+                is DrawerAction.Settings -> screen = Screen.Settings
+                is DrawerAction.Voices -> startActivity(android.content.Intent("com.android.settings.TTS_SETTINGS"))
+                is DrawerAction.ShareApp -> {
+                    val send = android.content.Intent(android.content.Intent.ACTION_SEND).apply {
+                        type = "text/plain"
+                        putExtra(
+                            android.content.Intent.EXTRA_TEXT,
+                            "Quickened — short spoken Scripture for ordinary moments: https://quickened.netlify.app"
+                        )
+                    }
+                    startActivity(android.content.Intent.createChooser(send, "Share Quickened"))
+                }
+            }
+        }
+
+        ModalNavigationDrawer(
+            drawerState = drawer,
+            drawerContent = { QuickenedDrawer(headerLine = streakLine, onAction = ::doAction) }
+        ) {
         when (val s = screen) {
             is Screen.Home -> HomeScreen(
                 tone = tone, onTone = { tone = it; persistSettings() },
                 activity = activity, onActivity = { manualActivity = it },
                 onStart = {
-                    val r = ContentRepository.random(this@MainActivity, tone)
+                    val r = ContentRepository.random(this@MainActivity, tone, translation)
+                    screen = Screen.Experience(r, tone, activity, System.currentTimeMillis())
+                },
+                onFreshWord = {
+                    val r = FreshWord.compose(this@MainActivity, tone, activity, translation)
                     screen = Screen.Experience(r, tone, activity, System.currentTimeMillis())
                 },
                 onHistory = { refreshAll(); screen = Screen.History },
                 onSettings = { screen = Screen.Settings },
+                onMenu = ::openMenu,
                 verseOfDay = verseOfDay,
                 streakLine = streakLine,
                 statsLine = statsLine
             )
             is Screen.Experience -> ExperienceScreen(
                 reflection = s.reflection, tone = s.tone, activity = s.activity, tts = tts,
+                translation = translation,
+                onTranslation = { tr ->
+                    translation = tr
+                    scope.launch {
+                        store.saveSettings(store.getSettings().copy(translation = tr))
+                    }
+                },
                 onDone = { finishExperience(s) },
                 onStop = { finishExperience(s) }
             )
@@ -211,7 +296,8 @@ class MainActivity : ComponentActivity() {
                     }
                 },
                 onClear = { scope.launch { store.clearHistory(); refreshAll() } },
-                onBack = { screen = Screen.Home }
+                onBack = { screen = Screen.Home },
+                onMenu = ::openMenu
             )
             is Screen.Settings -> SettingsScreen(
                 preferredTone = tone,
@@ -233,6 +319,13 @@ class MainActivity : ComponentActivity() {
                         store.saveSettings(store.getSettings().copy(theme = it))
                     }
                 },
+                translation = translation,
+                onTranslation = { tr ->
+                    translation = tr
+                    scope.launch {
+                        store.saveSettings(store.getSettings().copy(translation = tr))
+                    }
+                },
                 autoDetect = autoDetect,
                 onAutoDetect = { on ->
                     autoDetect = on
@@ -241,6 +334,51 @@ class MainActivity : ComponentActivity() {
                     }
                     if (on) ensureActivityDetection()
                     else ActivityDetector.stop(this@MainActivity)
+                },
+                syncEnabled = syncOn,
+                onSyncEnabled = { on ->
+                    syncOn = on
+                    scope.launch {
+                        store.saveSettings(store.getSettings().copy(syncEnabled = on))
+                    }
+                },
+                syncEndpoint = syncUrl,
+                onSyncEndpoint = { url ->
+                    syncUrl = url
+                    scope.launch {
+                        store.saveSettings(store.getSettings().copy(syncEndpoint = url))
+                    }
+                },
+                lastSynced = lastSynced,
+                onSyncNow = {
+                    if (syncing) return@SettingsScreen
+                    if (syncUrl.isBlank()) {
+                        toast("Enter your sync URL first")
+                        return@SettingsScreen
+                    }
+                    syncing = true
+                    scope.launch(kotlinx.coroutines.Dispatchers.IO) {
+                        try {
+                            val all = store.getSessions()
+                            val deviceId = android.provider.Settings.Secure.getString(
+                                contentResolver,
+                                android.provider.Settings.Secure.ANDROID_ID
+                            ) ?: "unknown"
+                            val code = SyncManager.push(syncUrl, SyncManager.payload(all, deviceId))
+                            val stamp = java.time.Instant.now().toString()
+                            if (code in 200..299) {
+                                store.saveSettings(store.getSettings().copy(lastSyncedAt = stamp))
+                                lastSynced = stamp
+                                toast("Synced ${all.size} moments ✓")
+                            } else {
+                                toast("Server said $code — kept locally")
+                            }
+                        } catch (e: Exception) {
+                            toast("Offline — kept on device")
+                        } finally {
+                            syncing = false
+                        }
+                    }
                 },
                 reminderEnabled = reminderOn,
                 onReminderEnabled = { on ->
@@ -282,8 +420,10 @@ class MainActivity : ComponentActivity() {
                         ).show()
                     }
                 },
-                onBack = { screen = Screen.Home }
+                onBack = { screen = Screen.Home },
+                onMenu = ::openMenu
             )
+        }
         }
     }
 }

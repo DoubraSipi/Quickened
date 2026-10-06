@@ -56,14 +56,18 @@ fun HomeScreen(
     activity: String,
     onActivity: (String) -> Unit,
     onStart: () -> Unit,
+    onFreshWord: () -> Unit,
     onHistory: () -> Unit,
     onSettings: () -> Unit,
+    onMenu: () -> Unit,
     verseOfDay: Reflection?,
     streakLine: String,
     statsLine: String
 ) {
+    Column(modifier = Modifier.fillMaxSize()) {
+        DrawerTopBar(title = "Quickened", onMenu = onMenu)
     Column(
-        modifier = Modifier.fillMaxSize().padding(horizontal = 20.dp, vertical = 16.dp)
+        modifier = Modifier.fillMaxSize().padding(horizontal = 20.dp, vertical = 8.dp)
             .verticalScroll(rememberScrollState()),
         verticalArrangement = Arrangement.spacedBy(16.dp)
     ) {
@@ -115,30 +119,30 @@ fun HomeScreen(
         Row(horizontalArrangement = Arrangement.spacedBy(10.dp), modifier = Modifier.fillMaxWidth()) {
             ACTIVITIES.forEach { a ->
                 if (a == activity) {
-                    Button(
-                        onClick = { onActivity(a) },
-                        modifier = Modifier.weight(1f).height(52.dp),
-                        shape = RoundedCornerShape(16.dp)
-                    ) { Text(a.replaceFirstChar { it.uppercase() }, fontWeight = FontWeight.SemiBold) }
+                    BlendedButton(onClick = { onActivity(a) }, modifier = Modifier.weight(1f)) {
+                        Text(a.replaceFirstChar { it.uppercase() }, fontWeight = FontWeight.SemiBold)
+                    }
                 } else {
-                    OutlinedButton(
-                        onClick = { onActivity(a) },
-                        modifier = Modifier.weight(1f).height(52.dp),
-                        shape = RoundedCornerShape(16.dp)
-                    ) { Text(a.replaceFirstChar { it.uppercase() }) }
+                    BlendedOutlineButton(onClick = { onActivity(a) }, modifier = Modifier.weight(1f)) {
+                        Text(a.replaceFirstChar { it.uppercase() })
+                    }
                 }
             }
         }
-        Button(
-            onClick = onStart,
-            modifier = Modifier.fillMaxWidth().height(64.dp),
-            shape = RoundedCornerShape(24.dp)
-        ) { Text("▶  Begin today's moment", style = MaterialTheme.typography.titleLarge) }
+        BlendedButton(onClick = onStart, modifier = Modifier.fillMaxWidth(), height = 64.dp) {
+            Text("▶  Begin today's moment", style = MaterialTheme.typography.titleLarge)
+        }
+        OutlinedButton(
+            onClick = onFreshWord,
+            modifier = Modifier.fillMaxWidth().height(56.dp),
+            shape = RoundedCornerShape(18.dp)
+        ) { Text("✨ Fresh word") }
         Text(statsLine, style = MaterialTheme.typography.bodySmall)
         Row(horizontalArrangement = Arrangement.Center, modifier = Modifier.fillMaxWidth()) {
             TextButton(onClick = onHistory) { Text("History") }
             TextButton(onClick = onSettings) { Text("Settings") }
         }
+    }
     }
 }
 
@@ -152,6 +156,7 @@ private fun JourneyCard(label: String, symbol: String, gradient: List<Color>, se
         elevation = CardDefaults.cardElevation(defaultElevation = if (selected) 8.dp else 2.dp)
     ) {
         Box(modifier = Modifier.fillMaxSize().background(Brush.linearGradient(gradient)).padding(14.dp)) {
+            ToneMotif(label = label)
             Column(verticalArrangement = Arrangement.SpaceBetween, modifier = Modifier.fillMaxSize()) {
                 Text(symbol, fontSize = 28.sp, color = Color.White)
                 Column {
@@ -161,6 +166,66 @@ private fun JourneyCard(label: String, symbol: String, gradient: List<Color>, se
                         color = Color.White.copy(alpha = 0.8f),
                         style = MaterialTheme.typography.bodySmall
                     )
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun ToneMotif(label: String) {
+    androidx.compose.foundation.Canvas(modifier = Modifier.fillMaxSize()) {
+        val soft = Color.White.copy(alpha = 0.14f)
+        when (label) {
+            "gentle" -> {
+                // soft waves
+                for (i in 0..3) {
+                    drawArc(
+                        color = soft,
+                        startAngle = 200f,
+                        sweepAngle = 140f,
+                        useCenter = false,
+                        topLeft = androidx.compose.ui.geometry.Offset(-size.width * 0.3f, size.height * (0.15f + i * 0.22f)),
+                        size = androidx.compose.ui.geometry.Size(size.width * 1.6f, size.height * 0.5f),
+                        style = androidx.compose.ui.graphics.drawscope.Stroke(width = 3.dp.toPx())
+                    )
+                }
+            }
+            "encouraging" -> {
+                // sunburst
+                val c = androidx.compose.ui.geometry.Offset(size.width * 0.8f, size.height * 0.2f)
+                drawCircle(soft, radius = 22.dp.toPx(), center = c)
+                for (a in 0 until 12) {
+                    val ang = a * 30f * Math.PI.toFloat() / 180f
+                    drawLine(
+                        soft,
+                        c + androidx.compose.ui.geometry.Offset(kotlin.math.cos(ang) * 30.dp.toPx(), kotlin.math.sin(ang) * 30.dp.toPx()),
+                        c + androidx.compose.ui.geometry.Offset(kotlin.math.cos(ang) * 48.dp.toPx(), kotlin.math.sin(ang) * 48.dp.toPx()),
+                        strokeWidth = 3.dp.toPx()
+                    )
+                }
+            }
+            "contemplative" -> {
+                // moon + stars
+                val c = androidx.compose.ui.geometry.Offset(size.width * 0.75f, size.height * 0.25f)
+                drawCircle(Color.White.copy(alpha = 0.2f), radius = 20.dp.toPx(), center = c)
+                drawCircle(Color.Transparent, radius = 1.dp.toPx(), center = c)
+                listOf(
+                    androidx.compose.ui.geometry.Offset(size.width * 0.2f, size.height * 0.15f),
+                    androidx.compose.ui.geometry.Offset(size.width * 0.4f, size.height * 0.45f),
+                    androidx.compose.ui.geometry.Offset(size.width * 0.15f, size.height * 0.7f)
+                ).forEach { drawCircle(soft, radius = 2.5.dp.toPx(), center = it) }
+            }
+            else -> {
+                // upward path chevrons
+                for (i in 0..2) {
+                    val y = size.height * (0.75f - i * 0.22f)
+                    val path = androidx.compose.ui.graphics.Path().apply {
+                        moveTo(size.width * 0.2f, y)
+                        lineTo(size.width * 0.5f, y - 18.dp.toPx())
+                        lineTo(size.width * 0.8f, y)
+                    }
+                    drawPath(path, soft, style = androidx.compose.ui.graphics.drawscope.Stroke(width = 3.dp.toPx()))
                 }
             }
         }

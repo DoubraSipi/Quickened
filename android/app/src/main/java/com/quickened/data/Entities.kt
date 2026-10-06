@@ -24,5 +24,9 @@ data class Settings(
     val autoDetectActivity: Boolean = false,
     val reminderEnabled: Boolean = false,
     val reminderHour: Int = 7,
-    val reminderMinute: Int = 0
+    val reminderMinute: Int = 0,
+    val syncEnabled: Boolean = false,
+    val syncEndpoint: String = "",
+    val lastSyncedAt: String = "",
+    val translation: String = "simple" // "simple" | "kjv" (verses only)
 )

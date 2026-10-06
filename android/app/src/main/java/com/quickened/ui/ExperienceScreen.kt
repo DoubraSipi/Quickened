@@ -17,11 +17,13 @@ import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -35,13 +37,20 @@ fun ExperienceScreen(
     tone: String,
     activity: String,
     tts: TtsManager,
+    translation: String,
+    onTranslation: (String) -> Unit,
     onDone: () -> Unit,
     onStop: () -> Unit
 ) {
     val rate = ActivityDetector.speechRate(activity)
-    LaunchedEffect(reflection) {
+    val shownText = if (translation != "simple" && reflection.alt.containsKey(translation)) {
+        reflection.alt.getValue(translation)
+    } else {
+        reflection.text
+    }
+    LaunchedEffect(reflection, translation) {
         tts.onDone = onDone
-        tts.speak(reflection.text, rate)
+        tts.speak(shownText, rate)
     }
     DisposableEffect(Unit) {
         onDispose { tts.onDone = null }
@@ -74,26 +83,37 @@ fun ExperienceScreen(
                     textAlign = TextAlign.Center,
                     modifier = Modifier.fillMaxWidth()
                 )
+                if (reflection.type == "verse") {
+                    Row(horizontalArrangement = Arrangement.Center, modifier = Modifier.fillMaxWidth()) {
+                        listOf("simple", "kjv").forEach { tr ->
+                            TextButton(onClick = { onTranslation(tr) }) {
+                                Text(
+                                    if (tr == "simple") "Simple" else "KJV",
+                                    fontWeight = if (tr == translation) FontWeight.Bold else FontWeight.Normal,
+                                    color = if (tr == translation) MaterialTheme.colorScheme.primary
+                                    else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
+                                )
+                            }
+                        }
+                    }
+                }
                 Text(
-                    reflection.text,
+                    shownText,
                     style = MaterialTheme.typography.bodyLarge.copy(
-                        fontFamily = SerifHeadings, fontSize = 19.sp, lineHeight = 29.sp
-                    ),
-                    textAlign = TextAlign.Center
+                        fontFamily = SerifHeadings, fontSize = 21.sp, lineHeight = 33.sp
+                    )
                 )
             }
         }
         Spacer(Modifier.height(8.dp))
         Row(horizontalArrangement = Arrangement.spacedBy(10.dp), modifier = Modifier.fillMaxWidth()) {
-            Button(
-                onClick = { tts.speak(reflection.text, rate) },
-                modifier = Modifier.weight(1f).height(56.dp),
-                shape = RoundedCornerShape(18.dp)
+            BlendedButton(
+                onClick = { tts.speak(shownText, rate) },
+                modifier = Modifier.weight(1f)
             ) { Text("↻ Replay") }
-            OutlinedButton(
+            BlendedOutlineButton(
                 onClick = { tts.stop(); onStop() },
-                modifier = Modifier.weight(1f).height(56.dp),
-                shape = RoundedCornerShape(18.dp)
+                modifier = Modifier.weight(1f)
             ) { Text("■ Stop") }
         }
     }
