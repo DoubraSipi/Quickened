@@ -5,6 +5,7 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -33,7 +34,7 @@ import androidx.compose.ui.unit.sp
 import com.quickened.content.Reflection
 
 val TONES = listOf("gentle", "encouraging", "contemplative", "challenging")
-val ACTIVITIES = listOf("walking", "resting")
+val ACTIVITIES = listOf("walking", "resting", "stationary", "driving", "workout")
 
 private val ToneSymbol = mapOf(
     "gentle" to "✦",
@@ -60,6 +61,7 @@ fun HomeScreen(
     onHistory: () -> Unit,
     onSettings: () -> Unit,
     onMenu: () -> Unit,
+    userName: String,
     verseOfDay: Reflection?,
     streakLine: String,
     statsLine: String
@@ -74,6 +76,11 @@ fun HomeScreen(
         Text(
             "Grow with God.\nEveryday.",
             style = MaterialTheme.typography.headlineLarge.copy(fontFamily = SerifHeadings, lineHeight = 36.sp)
+        )
+        Text(
+            if (userName.isNotBlank()) "Good day, $userName." else "Good day for faith.",
+            style = MaterialTheme.typography.titleMedium,
+            color = MaterialTheme.colorScheme.primary
         )
         Text(streakLine, style = MaterialTheme.typography.titleSmall, color = MaterialTheme.colorScheme.primary)
 
@@ -116,16 +123,21 @@ fun HomeScreen(
 
         // 3 — Activity + begin
         Text("While you are…", style = MaterialTheme.typography.titleMedium)
-        Row(horizontalArrangement = Arrangement.spacedBy(10.dp), modifier = Modifier.fillMaxWidth()) {
-            ACTIVITIES.forEach { a ->
-                if (a == activity) {
-                    BlendedButton(onClick = { onActivity(a) }, modifier = Modifier.weight(1f)) {
-                        Text(a.replaceFirstChar { it.uppercase() }, fontWeight = FontWeight.SemiBold)
+        ACTIVITIES.chunked(2).forEach { row ->
+            Row(horizontalArrangement = Arrangement.spacedBy(10.dp), modifier = Modifier.fillMaxWidth()) {
+                row.forEach { a ->
+                    if (a == activity) {
+                        BlendedButton(onClick = { onActivity(a) }, modifier = Modifier.weight(1f)) {
+                            Text(a.replaceFirstChar { it.uppercase() }, fontWeight = FontWeight.SemiBold, fontSize = 17.sp)
+                        }
+                    } else {
+                        BlendedOutlineButton(onClick = { onActivity(a) }, modifier = Modifier.weight(1f)) {
+                            Text(a.replaceFirstChar { it.uppercase() }, fontSize = 17.sp)
+                        }
                     }
-                } else {
-                    BlendedOutlineButton(onClick = { onActivity(a) }, modifier = Modifier.weight(1f)) {
-                        Text(a.replaceFirstChar { it.uppercase() })
-                    }
+                }
+                if (row.size == 1) {
+                    Spacer(modifier = Modifier.weight(1f))
                 }
             }
         }

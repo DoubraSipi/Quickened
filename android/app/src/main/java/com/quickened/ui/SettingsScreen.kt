@@ -5,21 +5,17 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material3.Button
-import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
-import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.ExposedDropdownMenuBox
 import androidx.compose.material3.ExposedDropdownMenuDefaults
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedButton
+import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextField
 import androidx.compose.runtime.Composable
@@ -27,11 +23,14 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 
 val THEMES = listOf("system", "light", "dark")
+val TRANSLATIONS = listOf("simple", "kjv", "web", "asv")
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -44,6 +43,8 @@ fun SettingsScreen(
     onDownloadVoices: () -> Unit,
     theme: String,
     onTheme: (String) -> Unit,
+    userName: String,
+    onUserName: (String) -> Unit,
     translation: String,
     onTranslation: (String) -> Unit,
     reminderEnabled: Boolean,
@@ -81,17 +82,13 @@ fun SettingsScreen(
             Row(horizontalArrangement = Arrangement.spacedBy(10.dp), modifier = Modifier.fillMaxWidth()) {
                 row.forEach { t ->
                     if (t == preferredTone) {
-                        Button(
-                            onClick = { onTone(t) },
-                            modifier = Modifier.weight(1f).height(54.dp),
-                            shape = RoundedCornerShape(16.dp)
-                        ) { Text(t.replaceFirstChar { it.uppercase() }, fontWeight = FontWeight.SemiBold) }
+                        BlendedButton(onClick = { onTone(t) }, modifier = Modifier.weight(1f)) {
+                            Text(t.replaceFirstChar { it.uppercase() }, fontWeight = FontWeight.SemiBold, fontSize = 17.sp)
+                        }
                     } else {
-                        OutlinedButton(
-                            onClick = { onTone(t) },
-                            modifier = Modifier.weight(1f).height(54.dp),
-                            shape = RoundedCornerShape(16.dp)
-                        ) { Text(t.replaceFirstChar { it.uppercase() }) }
+                        BlendedOutlineButton(onClick = { onTone(t) }, modifier = Modifier.weight(1f)) {
+                            Text(t.replaceFirstChar { it.uppercase() }, fontSize = 17.sp)
+                        }
                     }
                 }
             }
@@ -117,75 +114,88 @@ fun SettingsScreen(
                 )
             }
         }
+        Text("Your name", style = MaterialTheme.typography.titleMedium)
+        var nameDraft by remember { mutableStateOf(userName) }
+        Row(
+            horizontalArrangement = Arrangement.spacedBy(10.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            modifier = Modifier.fillMaxWidth()
+        ) {
+            OutlinedTextField(
+                value = nameDraft,
+                onValueChange = { nameDraft = it },
+                singleLine = true,
+                shape = RoundedCornerShape(16.dp),
+                modifier = Modifier.weight(1f)
+            )
+            BlendedButton(onClick = {
+                if (nameDraft.isNotBlank()) onUserName(nameDraft.trim())
+            }) { Text("Save", fontSize = 15.sp) }
+        }
         Text("Theme", style = MaterialTheme.typography.titleMedium)
         Row(horizontalArrangement = Arrangement.spacedBy(10.dp), modifier = Modifier.fillMaxWidth()) {
             THEMES.forEach { th ->
                 if (th == theme) {
-                    Button(
-                        onClick = { onTheme(th) },
-                        modifier = Modifier.weight(1f).height(54.dp),
-                        shape = RoundedCornerShape(16.dp)
-                    ) { Text(th.replaceFirstChar { it.uppercase() }, fontWeight = FontWeight.SemiBold) }
+                    BlendedButton(onClick = { onTheme(th) }, modifier = Modifier.weight(1f)) {
+                        Text(th.replaceFirstChar { it.uppercase() }, fontWeight = FontWeight.SemiBold, fontSize = 15.sp)
+                    }
                 } else {
-                    OutlinedButton(
-                        onClick = { onTheme(th) },
-                        modifier = Modifier.weight(1f).height(54.dp),
-                        shape = RoundedCornerShape(16.dp)
-                    ) { Text(th.replaceFirstChar { it.uppercase() }) }
+                    BlendedOutlineButton(onClick = { onTheme(th) }, modifier = Modifier.weight(1f)) {
+                        Text(th.replaceFirstChar { it.uppercase() }, fontSize = 15.sp)
+                    }
                 }
             }
         }
-        Text("Bible wording (verses)", style = MaterialTheme.typography.titleMedium)
+        Text("Bible", style = MaterialTheme.typography.titleMedium)
         Row(horizontalArrangement = Arrangement.spacedBy(10.dp), modifier = Modifier.fillMaxWidth()) {
-            listOf("simple", "kjv").forEach { tr ->
+            TRANSLATIONS.forEach { tr ->
                 if (tr == translation) {
-                    Button(
-                        onClick = { onTranslation(tr) },
-                        modifier = Modifier.weight(1f).height(54.dp),
-                        shape = RoundedCornerShape(16.dp)
-                    ) { Text(tr.replaceFirstChar { it.uppercase() }, fontWeight = FontWeight.SemiBold) }
+                    BlendedButton(onClick = { onTranslation(tr) }, modifier = Modifier.weight(1f)) {
+                        Text(tr.replaceFirstChar { it.uppercase() }, fontWeight = FontWeight.SemiBold, fontSize = 15.sp)
+                    }
                 } else {
-                    OutlinedButton(
-                        onClick = { onTranslation(tr) },
-                        modifier = Modifier.weight(1f).height(54.dp),
-                        shape = RoundedCornerShape(16.dp)
-                    ) { Text(tr.replaceFirstChar { it.uppercase() }) }
+                    BlendedOutlineButton(onClick = { onTranslation(tr) }, modifier = Modifier.weight(1f)) {
+                        Text(tr.replaceFirstChar { it.uppercase() }, fontSize = 15.sp)
+                    }
                 }
             }
         }
         Text("Daily reminder", style = MaterialTheme.typography.titleMedium)
         Row(
             horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically,
             modifier = Modifier.fillMaxWidth()
         ) {
-            Text(if (reminderEnabled) "On • $reminderTime" else "Off")
-            OutlinedButton(onClick = { onReminderEnabled(!reminderEnabled) }) {
-                Text(if (reminderEnabled) "Turn off" else "Turn on")
+            Text(if (reminderEnabled) "On • $reminderTime" else "Off", fontSize = 17.sp)
+            BlendedOutlineButton(onClick = { onReminderEnabled(!reminderEnabled) }) {
+                Text(if (reminderEnabled) "Turn off" else "Turn on", fontSize = 17.sp)
             }
         }
         if (reminderEnabled) {
-            OutlinedButton(onClick = onPickTime, modifier = Modifier.fillMaxWidth().height(54.dp), shape = RoundedCornerShape(18.dp)) {
-                Text("Change time ($reminderTime)")
+            BlendedOutlineButton(onClick = onPickTime, modifier = Modifier.fillMaxWidth()) {
+                Text("Change time ($reminderTime)", fontSize = 17.sp)
             }
         }
         Text("Activity", style = MaterialTheme.typography.titleMedium)
         Row(
             horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically,
             modifier = Modifier.fillMaxWidth()
         ) {
-            Text(if (autoDetect) "Auto-detect on" else "Manual toggle")
-            OutlinedButton(onClick = { onAutoDetect(!autoDetect) }) {
-                Text(if (autoDetect) "Use manual" else "Auto-detect")
+            Text(if (autoDetect) "Auto-detect on" else "Manual toggle", fontSize = 17.sp)
+            BlendedOutlineButton(onClick = { onAutoDetect(!autoDetect) }) {
+                Text(if (autoDetect) "Use manual" else "Auto-detect", fontSize = 17.sp)
             }
         }
         Text("Cloud backup (optional)", style = MaterialTheme.typography.titleMedium)
         Row(
             horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically,
             modifier = Modifier.fillMaxWidth()
         ) {
-            Text(if (syncEnabled) "On" else "Off")
-            OutlinedButton(onClick = { onSyncEnabled(!syncEnabled) }) {
-                Text(if (syncEnabled) "Turn off" else "Turn on")
+            Text(if (syncEnabled) "On" else "Off", fontSize = 17.sp)
+            BlendedOutlineButton(onClick = { onSyncEnabled(!syncEnabled) }) {
+                Text(if (syncEnabled) "Turn off" else "Turn on", fontSize = 17.sp)
             }
         }
         if (syncEnabled) {
@@ -198,17 +208,13 @@ fun SettingsScreen(
                 shape = RoundedCornerShape(16.dp),
                 singleLine = true
             )
-            OutlinedButton(
-                onClick = { onSyncEndpoint(draft) },
-                modifier = Modifier.fillMaxWidth().height(54.dp),
-                shape = RoundedCornerShape(18.dp)
-            ) { Text("Save URL") }
+            BlendedOutlineButton(onClick = { onSyncEndpoint(draft) }, modifier = Modifier.fillMaxWidth()) {
+                Text("Save URL", fontSize = 17.sp)
+            }
             if (lastSynced.isNotEmpty()) Text("Last synced: $lastSynced")
-            OutlinedButton(
-                onClick = onSyncNow,
-                modifier = Modifier.fillMaxWidth().height(54.dp),
-                shape = RoundedCornerShape(18.dp)
-            ) { Text("⤴ Sync now") }
+            BlendedOutlineButton(onClick = onSyncNow, modifier = Modifier.fillMaxWidth()) {
+                Text("⤴ Sync now", fontSize = 17.sp)
+            }
         }
         Text("Privacy", style = MaterialTheme.typography.titleMedium)
         Card(shape = RoundedCornerShape(20.dp)) {
@@ -216,16 +222,13 @@ fun SettingsScreen(
                 "Quickened works fully offline. No accounts, no analytics, no network requests. " +
                     "All preferences and moments stay on this device. You can delete them at any time.",
                 modifier = Modifier.padding(16.dp),
-                style = MaterialTheme.typography.bodyMedium
+                style = MaterialTheme.typography.bodyLarge
             )
         }
-        OutlinedButton(
-            onClick = onClearHistory,
-            modifier = Modifier.fillMaxWidth().height(54.dp),
-            shape = RoundedCornerShape(18.dp),
-            colors = ButtonDefaults.outlinedButtonColors(contentColor = MaterialTheme.colorScheme.error)
-        ) { Text("Clear all moments") }
-        OutlinedButton(onClick = onBack, modifier = Modifier.fillMaxWidth().height(54.dp), shape = RoundedCornerShape(18.dp)) { Text("← Home") }
+        BlendedOutlineButton(onClick = onClearHistory, modifier = Modifier.fillMaxWidth()) {
+            Text("Clear all moments", fontSize = 17.sp)
+        }
+        BlendedOutlineButton(onClick = onBack, modifier = Modifier.fillMaxWidth()) { Text("← Home", fontSize = 17.sp) }
     }
     }
 }

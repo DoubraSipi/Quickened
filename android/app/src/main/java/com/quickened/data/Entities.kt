@@ -28,5 +28,6 @@ data class Settings(
     val syncEnabled: Boolean = false,
     val syncEndpoint: String = "",
     val lastSyncedAt: String = "",
-    val translation: String = "simple" // "simple" | "kjv" (verses only)
+    val translation: String = "simple", // "simple" | "kjv" (verses only)
+    val userName: String = ""
 )

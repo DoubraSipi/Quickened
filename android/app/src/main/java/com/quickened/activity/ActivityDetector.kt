@@ -57,4 +57,12 @@ object ActivityDetector {
         "stationary" -> 0.92f
         else -> 1.0f
     }
+
+    // Max spoken-text length per activity: driving gets short verses (safety),
+    // workout medium, rest full length.
+    fun verseMaxLen(activity: String): Int = when (activity) {
+        "driving" -> 200
+        "workout" -> 300
+        else -> 400
+    }
 }

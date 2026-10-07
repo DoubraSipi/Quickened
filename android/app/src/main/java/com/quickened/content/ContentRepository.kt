@@ -10,10 +10,16 @@ data class Reflection(val title: String, val text: String, val type: String = "r
 // translation: "simple" (default text) | "kjv" (KJV wording for verses that carry it).
 // Loads local assets/content/<tone>.json. No network. Falls back to stub if missing.
 object ContentRepository {
-    fun random(context: Context, tone: String, translation: String = "simple"): Reflection {
+    fun random(
+        context: Context,
+        tone: String,
+        translation: String = "simple",
+        excludeTitles: Set<String> = emptySet()
+    ): Reflection {
         val list = load(context, tone, translation)
         if (list.isEmpty()) return Reflection("Quiet moment", "Be still, and know that I am God.", "verse")
-        return list.random()
+        val fresh = list.filter { it.title !in excludeTitles }
+        return (if (fresh.isNotEmpty()) fresh else list).random()
     }
 
     fun load(context: Context, tone: String, translation: String = "simple"): List<Reflection> {
@@ -27,6 +33,7 @@ object ContentRepository {
                 val alt = buildMap {
                     if (o.has("kjv")) put("kjv", o.getString("kjv"))
                     if (o.has("web")) put("web", o.getString("web"))
+                    if (o.has("asv")) put("asv", o.getString("asv"))
                 }
                 val resolved = if (translation != "simple" && type == "verse") alt[translation] ?: text else text
                 Reflection(o.getString("title"), resolved, type, alt)

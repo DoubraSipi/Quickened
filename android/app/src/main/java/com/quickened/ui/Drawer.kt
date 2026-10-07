@@ -1,5 +1,6 @@
 package com.quickened.ui
 
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -13,7 +14,9 @@ import androidx.compose.material3.NavigationDrawerItem
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.unit.dp
+import com.quickened.R
 
 sealed class DrawerAction(val symbol: String, val label: String) {
     data object Home : DrawerAction("✦", "Today's Verse")
@@ -23,6 +26,7 @@ sealed class DrawerAction(val symbol: String, val label: String) {
     data object Favorites : DrawerAction("★", "Favorites")
     data object Export : DrawerAction("⤴", "Export moments")
     data object Reminder : DrawerAction("◔", "Reminder")
+    data object Prayer : DrawerAction("◍", "Prayer watch")
     data object Settings : DrawerAction("⚙", "Settings")
     data object Voices : DrawerAction("♪", "Download voices")
     data object ShareApp : DrawerAction("♡", "Share Quickened")
@@ -35,10 +39,10 @@ fun QuickenedDrawer(
 ) {
     ModalDrawerSheet {
         Column(modifier = Modifier.padding(20.dp)) {
-            Text(
-                "Quickened",
-                style = MaterialTheme.typography.headlineSmall.copy(fontFamily = SerifHeadings),
-                color = MaterialTheme.colorScheme.primary
+            Image(
+                painter = painterResource(id = R.drawable.brand_wordmark),
+                contentDescription = "Quickened",
+                modifier = Modifier.height(36.dp)
             )
             Text(headerLine, style = MaterialTheme.typography.bodySmall)
         }
@@ -47,7 +51,7 @@ fun QuickenedDrawer(
         ), onAction)
         HorizontalDivider()
         DrawerSection("Yours", listOf(
-            DrawerAction.Favorites, DrawerAction.Export, DrawerAction.Reminder
+            DrawerAction.Favorites, DrawerAction.Export, DrawerAction.Reminder, DrawerAction.Prayer
         ), onAction)
         HorizontalDivider()
         DrawerSection("App", listOf(
@@ -86,6 +90,14 @@ fun DrawerTopBar(title: String, onMenu: () -> Unit) {
         androidx.compose.material3.IconButton(onClick = onMenu) {
             Text("☰", style = MaterialTheme.typography.titleLarge)
         }
-        Text(title, style = MaterialTheme.typography.titleMedium.copy(fontFamily = SerifHeadings))
+        if (title == "Quickened") {
+            Image(
+                painter = painterResource(id = R.drawable.brand_wordmark),
+                contentDescription = "Quickened",
+                modifier = Modifier.height(28.dp)
+            )
+        } else {
+            Text(title, style = MaterialTheme.typography.titleMedium.copy(fontFamily = SerifHeadings))
+        }
     }
 }

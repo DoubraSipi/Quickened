@@ -15,12 +15,12 @@ import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import com.quickened.data.Session
 
 val HISTORY_FILTERS = listOf("all", "gentle", "encouraging", "contemplative", "challenging", "favorites")
@@ -89,9 +89,9 @@ fun HistoryScreen(
                 }
             }
         }
-        OutlinedButton(onClick = onExport, modifier = Modifier.fillMaxWidth().height(54.dp), shape = RoundedCornerShape(18.dp)) { Text("⤴ Export as text") }
-        OutlinedButton(onClick = onClear, modifier = Modifier.fillMaxWidth().height(54.dp), shape = RoundedCornerShape(18.dp)) { Text("Clear all") }
-        OutlinedButton(onClick = onBack, modifier = Modifier.fillMaxWidth().height(54.dp), shape = RoundedCornerShape(18.dp)) { Text("← Home") }
+        BlendedOutlineButton(onClick = onExport, modifier = Modifier.fillMaxWidth()) { Text("⤴ Export as text", fontSize = 17.sp) }
+        BlendedOutlineButton(onClick = onClear, modifier = Modifier.fillMaxWidth()) { Text("Clear all", fontSize = 17.sp) }
+        BlendedOutlineButton(onClick = onBack, modifier = Modifier.fillMaxWidth()) { Text("← Home", fontSize = 17.sp) }
     }
     }
 }

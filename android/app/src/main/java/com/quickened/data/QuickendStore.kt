@@ -6,6 +6,7 @@ import java.util.UUID
 class QuickendStore(
     private val db: AppDatabase
 ) {
+    fun db(): AppDatabase = db
     suspend fun saveSettings(s: Settings) = db.settingsDao().save(s)
 
     suspend fun getSettings(): Settings = db.settingsDao().load() ?: Settings()

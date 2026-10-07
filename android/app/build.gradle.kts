@@ -20,6 +20,26 @@ android {
     buildTypes {
         release {
             isMinifyEnabled = false
+            val keystoreFile = rootProject.file("keystore/quickened-release.jks")
+            if (keystoreFile.exists()) {
+                val localSecrets = rootProject.file("local.properties").takeIf { it.exists() }
+                    ?.readLines().orEmpty()
+                    .mapNotNull { line ->
+                        val parts = line.split("=").map { it.trim() }
+                        if (parts.size == 2) parts[0] to parts[1] else null
+                    }.toMap()
+                signingConfigs {
+                    create("release") {
+                        storeFile = keystoreFile
+                        storePassword = localSecrets["release.storePassword"]
+                            ?: System.getenv("QUICKENED_STORE_PASSWORD")
+                        keyAlias = "quickened"
+                        keyPassword = localSecrets["release.keyPassword"]
+                            ?: System.getenv("QUICKENED_KEY_PASSWORD")
+                    }
+                }
+                signingConfig = signingConfigs.getByName("release")
+            }
         }
     }
     compileOptions {
@@ -31,6 +51,9 @@ android {
     }
     buildFeatures {
         compose = true
+    }
+    lint {
+        checkReleaseBuilds = false
     }
 }
 

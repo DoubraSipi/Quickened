@@ -7,6 +7,7 @@
     <uses-permission android:name="android.permission.ACTIVITY_RECOGNITION" />
     <application
         android:allowBackup="true"
+        android:icon="@mipmap/ic_launcher"
         android:label="Quickened"
         android:theme="@android:style/Theme.Material.Light.NoActionBar">
         <activity
@@ -48,6 +49,13 @@
             android:exported="false">
             <intent-filter>
                 <action android:name="com.quickened.ACTIVITY_TRANSITION" />
+            </intent-filter>
+        </receiver>
+        <receiver
+            android:name=".reminder.PrayerReceiver"
+            android:exported="false">
+            <intent-filter>
+                <action android:name="com.quickened.PRAYER_WATCH" />
             </intent-filter>
         </receiver>
     </application>

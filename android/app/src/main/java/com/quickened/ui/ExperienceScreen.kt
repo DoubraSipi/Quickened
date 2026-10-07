@@ -85,7 +85,7 @@ fun ExperienceScreen(
                 )
                 if (reflection.type == "verse") {
                     Row(horizontalArrangement = Arrangement.Center, modifier = Modifier.fillMaxWidth()) {
-                        listOf("simple", "kjv").forEach { tr ->
+                        listOf("simple", "kjv", "web", "asv").forEach { tr ->
                             TextButton(onClick = { onTranslation(tr) }) {
                                 Text(
                                     if (tr == "simple") "Simple" else "KJV",

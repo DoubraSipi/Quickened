@@ -36,6 +36,10 @@ object FreshWord {
         val verses = ContentRepository.load(context, tone, translation).filter { it.type == "verse" }
         val base = if (verses.isNotEmpty()) verses.random()
         else Reflection("Quiet moment", "Be still, and know that I am God.")
+        return composeFrom(base, tone, activity)
+    }
+
+    fun composeFrom(base: Reflection, tone: String, activity: String): Reflection {
         val opener = openers[tone]?.random() ?: "Listen."
         val closer = closers[activity] ?: closers.getValue("unknown")
         val text = "$opener ${base.text} Given ${daypart()}, ${closer}"
