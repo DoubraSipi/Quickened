@@ -20,10 +20,10 @@ android {
     buildTypes {
         release {
             isMinifyEnabled = false
-            // Physical phones only: drop x86/x86_64 emulator ABIs (~43MB saved).
+            // Physical 64-bit phones only: drop 32-bit ARM and x86 emulator ABIs.
             // Debug keeps all ABIs so the emulator still works.
             ndk {
-                abiFilters += listOf("armeabi-v7a", "arm64-v8a")
+                abiFilters += listOf("arm64-v8a")
             }
             val keystoreFile = rootProject.file("keystore/quickened-release.jks")
             if (keystoreFile.exists()) {
