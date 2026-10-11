@@ -13,13 +13,18 @@ android {
         applicationId = "com.quickened"
         minSdk = 26
         targetSdk = 34
-        versionCode = 1
-        versionName = "1.0"
+        versionCode = 2
+        versionName = "1.1"
     }
 
     buildTypes {
         release {
             isMinifyEnabled = false
+            // Physical phones only: drop x86/x86_64 emulator ABIs (~43MB saved).
+            // Debug keeps all ABIs so the emulator still works.
+            ndk {
+                abiFilters += listOf("armeabi-v7a", "arm64-v8a")
+            }
             val keystoreFile = rootProject.file("keystore/quickened-release.jks")
             if (keystoreFile.exists()) {
                 val localSecrets = rootProject.file("local.properties").takeIf { it.exists() }
@@ -46,8 +51,10 @@ android {
         sourceCompatibility = JavaVersion.VERSION_17
         targetCompatibility = JavaVersion.VERSION_17
     }
-    kotlinOptions {
-        jvmTarget = "17"
+    kotlin {
+        compilerOptions {
+            jvmTarget.set(org.jetbrains.kotlin.gradle.dsl.JvmTarget.JVM_17)
+        }
     }
     buildFeatures {
         compose = true
@@ -73,7 +80,12 @@ dependencies {
     implementation("androidx.room:room-runtime:$roomVersion")
     implementation("androidx.room:room-ktx:$roomVersion")
     ksp("androidx.room:room-compiler:$roomVersion")
+    implementation(project(":pipertts"))
     implementation("com.google.android.gms:play-services-location:21.3.0")
+    implementation("com.tom-roush:pdfbox-android:2.0.27.0")
+    implementation("com.positiondev.epublib:epublib-core:3.1") {
+        exclude(group = "xmlpull", module = "xmlpull")
+    }
 
     debugImplementation("androidx.compose.ui:ui-tooling")
 }

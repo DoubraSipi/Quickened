@@ -6,7 +6,9 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalDrawerSheet
@@ -22,13 +24,15 @@ sealed class DrawerAction(val symbol: String, val label: String) {
     data object Home : DrawerAction("✦", "Today's Verse")
     data object Begin : DrawerAction("▶", "Begin moment")
     data object Fresh : DrawerAction("✨", "Fresh word")
+    data object Fast : DrawerAction("◐", "Fasting")
+    data object Reader : DrawerAction("▤", "Reader")
     data object History : DrawerAction("◷", "History")
     data object Favorites : DrawerAction("★", "Favorites")
     data object Export : DrawerAction("⤴", "Export moments")
     data object Reminder : DrawerAction("◔", "Reminder")
     data object Prayer : DrawerAction("◍", "Prayer watch")
     data object Settings : DrawerAction("⚙", "Settings")
-    data object Voices : DrawerAction("♪", "Download voices")
+    data object Voices : DrawerAction("♪", "Voices")
     data object ShareApp : DrawerAction("♡", "Share Quickened")
 }
 
@@ -38,6 +42,7 @@ fun QuickenedDrawer(
     onAction: (DrawerAction) -> Unit
 ) {
     ModalDrawerSheet {
+        Column(modifier = Modifier.verticalScroll(rememberScrollState()).padding(bottom = 24.dp)) {
         Column(modifier = Modifier.padding(20.dp)) {
             Image(
                 painter = painterResource(id = R.drawable.brand_wordmark),
@@ -47,7 +52,8 @@ fun QuickenedDrawer(
             Text(headerLine, style = MaterialTheme.typography.bodySmall)
         }
         DrawerSection("Moments", listOf(
-            DrawerAction.Home, DrawerAction.Begin, DrawerAction.Fresh, DrawerAction.History
+            DrawerAction.Home, DrawerAction.Begin, DrawerAction.Fresh, DrawerAction.Fast,
+            DrawerAction.History, DrawerAction.Reader
         ), onAction)
         HorizontalDivider()
         DrawerSection("Yours", listOf(
@@ -58,6 +64,7 @@ fun QuickenedDrawer(
             DrawerAction.Settings, DrawerAction.Voices, DrawerAction.ShareApp
         ), onAction)
         Spacer(Modifier.height(12.dp))
+        }
     }
 }
 

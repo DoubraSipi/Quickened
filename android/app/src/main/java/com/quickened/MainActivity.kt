@@ -8,10 +8,13 @@ import androidx.activity.ComponentActivity
 import androidx.activity.compose.BackHandler
 import androidx.activity.compose.setContent
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.LifecycleEventObserver
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.material3.Surface
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -26,7 +29,10 @@ import com.quickened.content.ExportHelper
 import com.quickened.content.FreshWord
 import com.quickened.content.Reflection
 import com.quickened.content.StatsCalculator
+import com.quickened.content.spokenRef
 import com.quickened.data.AppDatabase
+import com.quickened.data.BookProgress
+import com.quickened.data.FastRecord
 import com.quickened.data.PrayerWatch
 import com.quickened.data.QuickendStore
 import com.quickened.data.Session
@@ -36,19 +42,29 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import com.quickened.activity.ActivityDetector
 import com.quickened.reminder.ReminderScheduler
+import com.quickened.piper.KokoroCatalog
+import com.quickened.piper.KokoroSpeaker
+import com.quickened.piper.KokoroStore
+import com.quickened.piper.PiperCatalog
+import com.quickened.piper.PiperSpeaker
+import com.quickened.piper.PiperVoices
+import com.quickened.piper.StudioSpeaker
 import com.quickened.sync.SyncManager
 import com.quickened.tts.TtsManager
 import androidx.compose.material3.DrawerValue
 import androidx.compose.material3.ModalNavigationDrawer
 import androidx.compose.material3.rememberDrawerState
+import com.quickened.reader.BookReader
 import com.quickened.ui.DrawerAction
 import com.quickened.ui.BrandSplash
 import com.quickened.ui.ExperienceScreen
+import com.quickened.ui.FastingScreen
 import com.quickened.ui.HistoryScreen
 import com.quickened.ui.HomeScreen
 import com.quickened.ui.OnboardingScreen
 import com.quickened.ui.PrayerScreen
 import com.quickened.ui.QuickenedDrawer
+import com.quickened.ui.ReaderScreen
 import com.quickened.ui.QuickenedTheme
 import com.quickened.ui.SettingsScreen
 import kotlinx.coroutines.launch
@@ -56,6 +72,11 @@ import kotlinx.coroutines.launch
 class MainActivity : ComponentActivity() {
     private lateinit var store: QuickendStore
     private lateinit var tts: TtsManager
+    private var piperSpeaker: PiperSpeaker? = null
+    private var currentPiperVoiceId: String? = null
+    private var kokoroSpeaker: KokoroSpeaker? = null
+    private var currentKokoroVoiceId: String? = null
+    private var studioSpeaker: StudioSpeaker? = null
     private var themeState = mutableStateOf("system")
     private var activityState = mutableStateOf("walking")
 
@@ -109,16 +130,105 @@ class MainActivity : ComponentActivity() {
     }
 
     override fun onDestroy() {
+        try {
+            piperSpeaker?.shutdown()
+        } catch (e: Exception) {
+            // ignore
+        }
+        try {
+            kokoroSpeaker?.shutdown()
+        } catch (e: Exception) {
+            // ignore
+        }
+        try {
+            studioSpeaker?.shutdown()
+        } catch (e: Exception) {
+            // ignore
+        }
         tts.shutdown()
         super.onDestroy()
     }
 
+    private suspend fun ensureKokoro(id: String, attempts: Int = 2): KokoroSpeaker? {
+        if (kokoroSpeaker != null && currentKokoroVoiceId == id) return kokoroSpeaker
+        try {
+            kokoroSpeaker?.shutdown()
+            kokoroSpeaker = null
+            currentKokoroVoiceId = null
+            val speaker = KokoroSpeaker(assets, filesDir, this, id)
+            repeat(attempts) { tryN ->
+                try {
+                    if (speaker.init()) {
+                        kokoroSpeaker = speaker
+                        currentKokoroVoiceId = id
+                        android.util.Log.i("KOKORO_APP", "speaker ready: $id (try ${tryN + 1})")
+                        return speaker
+                    }
+                    android.util.Log.w("KOKORO_APP", "init not ready: $id (try ${tryN + 1})")
+                } catch (t: Throwable) {
+                    android.util.Log.e("KOKORO_APP", "speaker failed", t)
+                }
+                kotlinx.coroutines.delay(1500)
+            }
+            return null
+        } catch (t: Throwable) {
+            android.util.Log.e("KOKORO_APP", "speaker failed", t)
+            return null
+        }
+    }
+
+    private suspend fun ensurePiper(id: String, attempts: Int = 2): PiperSpeaker? {
+        if (id.isEmpty()) return null
+        if (piperSpeaker != null && currentPiperVoiceId == id) return piperSpeaker
+        try {
+            piperSpeaker?.shutdown()
+            piperSpeaker = null
+            currentPiperVoiceId = null
+            repeat(attempts) { tryN ->
+                try {
+                    val voice = PiperCatalog.byId(id) ?: return null
+                    if (!PiperSpeaker.fetchMap(this, voice)) {
+                        android.util.Log.w("PIPER_APP", "map missing for $id")
+                        return null
+                    }
+                    val speaker = PiperSpeaker(assets, filesDir, PiperVoices.dir(this), id)
+                    if (speaker.init()) {
+                        piperSpeaker = speaker
+                        currentPiperVoiceId = id
+                        android.util.Log.i("PIPER_APP", "speaker ready: $id (try ${tryN + 1})")
+                        return speaker
+                    }
+                    android.util.Log.w("PIPER_APP", "speaker init failed for $id (try ${tryN + 1})")
+                } catch (t: Throwable) {
+                    android.util.Log.e("PIPER_APP", "speaker failed", t)
+                }
+                kotlinx.coroutines.delay(1500)
+            }
+            return null
+        } catch (t: Throwable) {
+            android.util.Log.e("PIPER_APP", "speaker failed", t)
+            return null
+        }
+    }
+
     private sealed interface Screen {
         data object Home : Screen
-        data class Experience(val reflection: Reflection, val tone: String, val activity: String, val startMs: Long) : Screen
+        data class Experience(
+            val reflection: Reflection,
+            val tone: String,
+            val activity: String,
+            val startMs: Long,
+            val piper: PiperSpeaker? = null,
+            val kokoro: KokoroSpeaker? = null,
+            val studio: StudioSpeaker? = null,
+            val studioUrl: String = "",
+            val studioKey: String = ""
+        ) : Screen
         data object History : Screen
         data object Settings : Screen
         data object Prayer : Screen
+        data object Fasting : Screen
+        data object Reader : Screen
     }
 
     @Composable
@@ -146,10 +256,44 @@ class MainActivity : ComponentActivity() {
         var lastSynced by remember { mutableStateOf("") }
         var syncing by remember { mutableStateOf(false) }
         var translation by remember { mutableStateOf("simple") }
+        var piperSelected by remember { mutableStateOf("") }
+        var piperStates by remember { mutableStateOf<Map<String, PiperVoices.Status>>(emptyMap()) }
+        var kokoroModelReady by remember { mutableStateOf(false) }
+        var kokoroWorking by remember { mutableStateOf(false) }
+        var kokoroReady by remember { mutableStateOf(setOf<String>()) }
+        var studioUrl by remember { mutableStateOf("") }
+        var studioKey by remember { mutableStateOf("") }
+
+        fun refreshPiper() {
+            piperStates = PiperCatalog.voices.associate { it.id to PiperVoices.status(this@MainActivity, it) }
+            kokoroModelReady = KokoroStore.modelReady(this@MainActivity)
+            kokoroReady = KokoroCatalog.voices.filter { KokoroStore.voiceReady(this@MainActivity, it.id) }
+                .map { it.id }.toSet()
+        }
         var recentTitles by remember { mutableStateOf(listOf<String>()) }
         var bibleReady by remember { mutableStateOf(false) }
         var watches by remember { mutableStateOf<List<PrayerWatch>>(emptyList()) }
         var appReady by remember { mutableStateOf(false) }
+        var activeFast by remember { mutableStateOf<FastRecord?>(null) }
+        var fastHistory by remember { mutableStateOf<List<FastRecord>>(emptyList()) }
+        var fastCount by remember { mutableStateOf(0) }
+        var customHours by remember { mutableStateOf("") }
+        var fastIntention by remember { mutableStateOf("") }
+        var readerBook by remember { mutableStateOf<BookReader.Book?>(null) }
+        var readerUri by remember { mutableStateOf("") }
+        var readerChapter by remember { mutableStateOf(0) }
+        var readerPageIx by remember { mutableStateOf(0) }
+        var readerPlaying by remember { mutableStateOf(false) }
+        var readerStatus by remember { mutableStateOf("") }
+
+        fun refreshFasts() {
+            scope.launch {
+                activeFast = store.db().fastDao().active()
+                fastHistory = store.db().fastDao().history()
+                fastCount = store.db().fastDao().completedCount()
+            }
+        }
+        val drawer = rememberDrawerState(androidx.compose.material3.DrawerValue.Closed)
         var userName by remember { mutableStateOf<String?>(null) }
 
         suspend fun fullBibleReflection(): Reflection? {
@@ -164,30 +308,59 @@ class MainActivity : ComponentActivity() {
             )
         }
 
+        suspend fun drawNext(): Reflection {
+            val cap = ActivityDetector.verseMaxLen(activity)
+            val pool = ContentRepository.load(
+                this@MainActivity, tone, translation
+            ).filter { it.title !in recentTitles.toSet() && it.text.length <= cap + 120 }
+            val candidates = if (pool.isNotEmpty()) pool else ContentRepository.load(
+                this@MainActivity, tone, translation
+            )
+            val pick = candidates.random()
+            val r = if (pick.type == "verse" && bibleReady && translation == "kjv") {
+                fullBibleReflection() ?: pick
+            } else pick
+            android.util.Log.i("PICK", "tone=$tone title=${r.title}")
+            recentTitles = (recentTitles + r.title).takeLast(5)
+            return r
+        }
+
+        fun beginExperience(r: Reflection) {
+            scope.launch(kotlinx.coroutines.Dispatchers.IO) {
+                val sel = piperSelected
+                val p = if (sel.startsWith("kokoro:") || sel == "studio") null else ensurePiper(sel)
+                val k = if (sel.startsWith("kokoro:")) ensureKokoro(sel.removePrefix("kokoro:")) else null
+                val st = if (sel == "studio") {
+                    if (studioSpeaker == null) studioSpeaker = StudioSpeaker(this@MainActivity)
+                    studioSpeaker
+                } else null
+                kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.Main) {
+                    com.quickened.service.QuickenedAudioService.start(
+                        this@MainActivity, r.title, "Playing in background…"
+                    )
+                    screen = Screen.Experience(r, tone, activity, System.currentTimeMillis(), p, k, st, studioUrl, studioKey)
+                }
+            }
+        }
+
         fun pickFresh() {
             scope.launch(kotlinx.coroutines.Dispatchers.IO) {
-                val cap = ActivityDetector.verseMaxLen(activity)
-                val pool = ContentRepository.load(
-                    this@MainActivity, tone, translation
-                ).filter { it.title !in recentTitles.toSet() && it.text.length <= cap + 120 }
-                val candidates = if (pool.isNotEmpty()) pool else ContentRepository.load(
-                    this@MainActivity, tone, translation
-                )
-                val pick = candidates.random()
-                val r = if (pick.type == "verse" && bibleReady && translation == "kjv") {
-                    fullBibleReflection() ?: pick
-                } else pick
-                recentTitles = (recentTitles + r.title).takeLast(5)
-                screen = Screen.Experience(r, tone, activity, System.currentTimeMillis())
+                val r = drawNext()
+                kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.Main) {
+                    beginExperience(r)
+                }
             }
         }
         var confirmExit by remember { mutableStateOf(false) }
 
         BackHandler {
-            if (screen == Screen.Home) {
+            if (drawer.isOpen) {
+                scope.launch { drawer.close() }
+            } else if (screen == Screen.Home) {
                 confirmExit = true
             } else {
                 tts.stop()
+                com.quickened.service.QuickenedAudioService.stop(this@MainActivity)
                 screen = Screen.Home
             }
         }
@@ -217,6 +390,154 @@ class MainActivity : ComponentActivity() {
             }
         }
 
+        fun speakBookText(text: String, onDone: () -> Unit) {
+            val spoken = spokenRef(text)
+            val sel = piperSelected
+            when {
+                sel == "studio" && studioUrl.isNotBlank() -> {
+                    if (studioSpeaker == null) studioSpeaker = StudioSpeaker(this@MainActivity)
+                    studioSpeaker!!.speak(studioUrl, studioKey, spoken, onDone, {
+                        tts.onDone = onDone
+                        tts.speak(spoken, 1.0f)
+                    }) {}
+                }
+                sel.startsWith("kokoro:") -> {
+                    scope.launch(kotlinx.coroutines.Dispatchers.IO) {
+                        val k = ensureKokoro(sel.removePrefix("kokoro:"))
+                        kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.Main) {
+                            if (k != null) k.speak(spoken, onDone, {
+                                tts.onDone = onDone
+                                tts.speak(spoken, 1.0f)
+                            }) {}
+                            else {
+                                tts.onDone = onDone
+                                tts.speak(spoken, 1.0f)
+                            }
+                        }
+                    }
+                }
+                sel.isNotEmpty() -> {
+                    scope.launch(kotlinx.coroutines.Dispatchers.IO) {
+                        val p = ensurePiper(sel)
+                        kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.Main) {
+                            if (p != null) p.speak(spoken, onDone) {
+                                tts.onDone = onDone
+                                tts.speak(spoken, 1.0f)
+                            }
+                            else {
+                                tts.onDone = onDone
+                                tts.speak(spoken, 1.0f)
+                            }
+                        }
+                    }
+                }
+                else -> {
+                    tts.onDone = onDone
+                    tts.speak(spoken, 1.0f)
+                }
+            }
+        }
+
+        fun haltBookAudio() {
+            com.quickened.service.QuickenedAudioService.stop(this@MainActivity)
+            try {
+                tts.stop()
+            } catch (e: Exception) {
+                // ignore
+            }
+            try {
+                piperSpeaker?.stop()
+            } catch (e: Exception) {
+                // ignore
+            }
+            try {
+                kokoroSpeaker?.stop()
+            } catch (e: Exception) {
+                // ignore
+            }
+            try {
+                studioSpeaker?.stop()
+            } catch (e: Exception) {
+                // ignore
+            }
+        }
+
+        fun playReaderChapter(ix: Int) {
+            val book = readerBook ?: return
+            if (ix !in book.chapters.indices) return
+            readerChapter = ix
+            readerPlaying = true
+            readerStatus = "Reading part ${ix + 1} of ${book.chapters.size}"
+            com.quickened.service.QuickenedAudioService.start(
+                this@MainActivity,
+                book.title,
+                "Part ${ix + 1} of ${book.chapters.size}"
+            )
+            scope.launch(kotlinx.coroutines.Dispatchers.IO) {
+                store.db().bookDao().save(BookProgress(readerUri, book.title, ix))
+            }
+            speakBookText(book.chapters[ix]) {
+                if (readerPlaying && ix + 1 in book.chapters.indices) {
+                    playReaderChapter(ix + 1)
+                } else {
+                    readerPlaying = false
+                    readerStatus = "Finished “${book.title}”"
+                    com.quickened.service.QuickenedAudioService.stop(this@MainActivity)
+                }
+            }
+        }
+
+        fun startFast(kind: String, title: String, hours: Int) {
+            scope.launch(kotlinx.coroutines.Dispatchers.IO) {
+                val pool = ContentRepository.load(this@MainActivity, "gentle", translation)
+                val verse = if (pool.isNotEmpty()) pool.random() else null
+                val fast = FastRecord(
+                    id = java.util.UUID.randomUUID().toString(),
+                    kind = kind,
+                    title = title,
+                    targetHours = hours,
+                    intention = fastIntention,
+                    verseTitle = verse?.title ?: "",
+                    verseText = verse?.text ?: "Be still, and know that I am God.",
+                    startedAt = java.time.Instant.now().toString()
+                )
+                store.db().fastDao().insert(fast)
+                kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.Main) {
+                    refreshFasts()
+                }
+            }
+        }
+
+        fun endFast(completed: Boolean) {
+            val f = activeFast ?: return
+            scope.launch(kotlinx.coroutines.Dispatchers.IO) {
+                store.db().fastDao().finish(
+                    f.id,
+                    if (completed) "completed" else "broken",
+                    java.time.Instant.now().toString()
+                )
+                kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.Main) {
+                    refreshFasts()
+                }
+            }
+        }
+
+        fun refreshHero() {
+            scope.launch(kotlinx.coroutines.Dispatchers.IO) {
+                val hero = if (bibleReady && translation == "kjv") {
+                    val first = BibleLibrary.randomVerse(store.db())
+                    if (first != null) Reflection(
+                        title = "Today's Word — ${first.book} ${first.chapter}:${first.verse}",
+                        text = BibleLibrary.passage(store.db(), first),
+                        type = "verse"
+                    ) else null
+                } else null
+                val pool = ContentRepository.load(this@MainActivity, "gentle", translation)
+                val fallback = if (pool.isNotEmpty()) pool.random() else null
+                verseOfDay = hero ?: fallback
+            }
+        }
+
         fun refreshAll() {
             scope.launch {
                 val all = store.getSessions()
@@ -227,6 +548,7 @@ class MainActivity : ComponentActivity() {
                 else "🌱 Day 1 — a new rhythm begins."
                 sessions = if (filter == "favorites") all.filter { it.isFavorite }
                 else store.getSessionsByTone(filter)
+                recentTitles = (all.take(5).map { it.contentPreview } + recentTitles).distinct().takeLast(5)
             }
         }
 
@@ -264,7 +586,11 @@ class MainActivity : ComponentActivity() {
             syncOn = st.syncEnabled
             syncUrl = st.syncEndpoint
             lastSynced = st.lastSyncedAt
+            studioUrl = st.studioUrl
+            studioKey = st.studioKey
             translation = st.translation.ifEmpty { "simple" }
+            piperSelected = st.piperVoice
+            refreshPiper()
             userName = st.userName.ifEmpty { null }
             if (reminderOn) ReminderScheduler.schedule(this@MainActivity, reminderHour, reminderMinute)
             if (autoDetect) ensureActivityDetection()
@@ -277,23 +603,17 @@ class MainActivity : ComponentActivity() {
             bibleReady = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
                 BibleLibrary.ensureImported(this@MainActivity, store.db())
             }
-            val verses = ContentRepository.load(this@MainActivity, "gentle", translation)
-            verseOfDay = if (bibleReady && translation == "kjv") {
-                val first = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
-                    BibleLibrary.randomVerse(store.db())
-                }
-                if (first != null) Reflection(
-                    title = "Today's Word — ${first.book} ${first.chapter}:${first.verse}",
-                    text = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
-                        BibleLibrary.passage(store.db(), first)
-                    },
-                    type = "verse"
-                ) else verses.getOrNull(java.time.LocalDate.now().dayOfYear % verses.size.coerceAtLeast(1))
-            } else if (verses.isNotEmpty()) {
-                verses[java.time.LocalDate.now().dayOfYear % verses.size]
-            } else null
+            refreshHero()
             refreshAll()
+            refreshFasts()
             silentSync()
+            scope.launch(kotlinx.coroutines.Dispatchers.IO) {
+                if (piperSelected.startsWith("kokoro:")) {
+                    ensureKokoro(piperSelected.removePrefix("kokoro:"))
+                } else if (piperSelected.isNotEmpty()) {
+                    ensurePiper(piperSelected)
+                }
+            }
             scope.launch(kotlinx.coroutines.Dispatchers.IO) {
                 val all = store.db().prayerDao().getAll()
                 watches = all
@@ -307,17 +627,29 @@ class MainActivity : ComponentActivity() {
             }
         }
 
-        fun finishExperience(exp: Screen.Experience) {
-            val secs = ((System.currentTimeMillis() - exp.startMs) / 1000).toInt().coerceAtLeast(1)
+        fun finishExperience(firstTitle: String, count: Int, startMs: Long) {
+            val secs = ((System.currentTimeMillis() - startMs) / 1000).toInt().coerceAtLeast(1)
+            com.quickened.service.QuickenedAudioService.stop(this@MainActivity)
             scope.launch {
-                store.addSession(exp.tone, exp.activity, exp.reflection.title, secs)
+                val preview = if (count > 1) "$firstTitle (+${count - 1} more)" else firstTitle
+                store.addSession(tone, activity, preview, secs)
                 refreshAll()
                 screen = Screen.Home
                 silentSync()
             }
         }
 
-        val drawer = rememberDrawerState(androidx.compose.material3.DrawerValue.Closed)
+        DisposableEffect(Unit) {
+            val obs = LifecycleEventObserver { _, event ->
+                if (event == Lifecycle.Event.ON_RESUME) {
+                    refreshHero()
+                    refreshAll()
+                }
+            }
+            lifecycle.addObserver(obs)
+            onDispose { lifecycle.removeObserver(obs) }
+        }
+
         fun openMenu() {
             scope.launch { drawer.open() }
         }
@@ -333,13 +665,19 @@ class MainActivity : ComponentActivity() {
             closeMenu()
             when (a) {
                 is DrawerAction.Home -> screen = Screen.Home
+                is DrawerAction.Fast -> { refreshFasts(); screen = Screen.Fasting }
                 is DrawerAction.Begin -> pickFresh()
                 is DrawerAction.Fresh -> {
-                    val r = FreshWord.compose(this@MainActivity, tone, activity, translation)
-                    screen = Screen.Experience(r, tone, activity, System.currentTimeMillis())
+                    scope.launch(kotlinx.coroutines.Dispatchers.IO) {
+                        val r = FreshWord.compose(this@MainActivity, tone, activity, translation)
+                        kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.Main) {
+                            beginExperience(r)
+                        }
+                    }
                 }
                 is DrawerAction.History -> { refreshAll(); screen = Screen.History }
                 is DrawerAction.Favorites -> { filter = "favorites"; refreshAll(); screen = Screen.History }
+                is DrawerAction.Reader -> screen = Screen.Reader
                 is DrawerAction.Export -> shareAll()
                 is DrawerAction.Reminder -> screen = Screen.Settings
                 is DrawerAction.Prayer -> { refreshWatches(); screen = Screen.Prayer }
@@ -388,7 +726,10 @@ class MainActivity : ComponentActivity() {
                         } else null
                         val r = if (base != null) FreshWord.composeFrom(base, tone, activity)
                         else FreshWord.compose(this@MainActivity, tone, activity, translation)
-                        screen = Screen.Experience(r, tone, activity, System.currentTimeMillis())
+                        val p = ensurePiper(piperSelected)
+                        kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.Main) {
+                            screen = Screen.Experience(r, tone, activity, System.currentTimeMillis(), p)
+                        }
                     }
                 },
                 onHistory = { refreshAll(); screen = Screen.History },
@@ -397,10 +738,15 @@ class MainActivity : ComponentActivity() {
                 userName = userName ?: "",
                 verseOfDay = verseOfDay,
                 streakLine = streakLine,
-                statsLine = statsLine
+                statsLine = statsLine,
+                readerBookTitle = readerBook?.title,
+                readerChapter = readerChapter,
+                onOpenReader = { screen = Screen.Reader }
             )
             is Screen.Experience -> ExperienceScreen(
                 reflection = s.reflection, tone = s.tone, activity = s.activity, tts = tts,
+                piper = s.piper, kokoro = s.kokoro, studio = s.studio,
+                studioUrl = s.studioUrl, studioKey = s.studioKey,
                 translation = translation,
                 onTranslation = { tr ->
                     translation = tr
@@ -408,8 +754,15 @@ class MainActivity : ComponentActivity() {
                         store.saveSettings(store.getSettings().copy(translation = tr))
                     }
                 },
-                onDone = { finishExperience(s) },
-                onStop = { finishExperience(s) }
+                onNext = { _, done ->
+                    scope.launch(kotlinx.coroutines.Dispatchers.IO) {
+                        val r = drawNext()
+                        kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.Main) {
+                            done(r)
+                        }
+                    }
+                },
+                onStop = { firstTitle, count -> finishExperience(firstTitle, count, s.startMs) }
             )
             is Screen.History -> HistoryScreen(
                 sessions = sessions,
@@ -441,9 +794,30 @@ class MainActivity : ComponentActivity() {
                 voices = voices,
                 voice = voice,
                 onVoice = {
-                    voice = it
-                    if (it.isNotEmpty()) tts.setVoice(it)
-                    persistSettings()
+                    if (it == "studio") {
+                        piperSelected = "studio"
+                        scope.launch {
+                            store.saveSettings(store.getSettings().copy(piperVoice = "studio"))
+                        }
+                        toast("Saved")
+                    } else if (it.startsWith("kokoro:")) {
+                        piperSelected = it
+                        scope.launch {
+                            store.saveSettings(store.getSettings().copy(piperVoice = it))
+                        }
+                        toast("Saved")
+                    } else if (it.startsWith("piper:")) {
+                        val id = it.removePrefix("piper:")
+                        piperSelected = id
+                        scope.launch {
+                            store.saveSettings(store.getSettings().copy(piperVoice = id))
+                        }
+                        toast("Saved")
+                    } else {
+                        voice = it
+                        if (it.isNotEmpty()) tts.setVoice(it)
+                        persistSettings()
+                    }
                 },
                 onDownloadVoices = {
                     startActivity(android.content.Intent("com.android.settings.TTS_SETTINGS"))
@@ -460,6 +834,95 @@ class MainActivity : ComponentActivity() {
                     userName = name
                     scope.launch {
                         store.saveSettings(store.getSettings().copy(userName = name))
+                    }
+                },
+                piperStates = piperStates,
+                piperSelected = piperSelected,
+                onPiperDownload = { id ->
+                    val ok = PiperCatalog.byId(id)?.let { PiperVoices.download(this@MainActivity, it) } == true
+                    toast(if (ok) "Downloading voice (Wi-Fi)…" else "Download unavailable on this device")
+                    scope.launch {
+                        kotlinx.coroutines.delay(5000)
+                        refreshPiper()
+                    }
+                },
+                onPiperDelete = { id ->
+                    PiperCatalog.byId(id)?.let { PiperVoices.delete(this@MainActivity, it) }
+                    if (piperSelected == id) {
+                        piperSelected = ""
+                        scope.launch {
+                            store.saveSettings(store.getSettings().copy(piperVoice = ""))
+                        }
+                    }
+                    refreshPiper()
+                },
+                onPiperSelect = { id ->
+                    piperSelected = id
+                    scope.launch {
+                        store.saveSettings(store.getSettings().copy(piperVoice = id))
+                    }
+                    toast("Saved — in-app playback arrives with the voice engine")
+                },
+                kokoroModelReady = kokoroModelReady,
+                kokoroWorking = kokoroWorking,
+                kokoroVoicesReady = kokoroReady,
+                onKokoroModelDownload = {
+                    kokoroWorking = true
+                    scope.launch(kotlinx.coroutines.Dispatchers.IO) {
+                        val ok = KokoroStore.downloadModel(this@MainActivity)
+                        kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.Main) {
+                            kokoroWorking = false
+                            toast(if (ok) "Engine downloading…" else "Download unavailable on this device")
+                        }
+                        kotlinx.coroutines.delay(15000)
+                        refreshPiper()
+                    }
+                },
+                onKokoroDownload = { id ->
+                    scope.launch(kotlinx.coroutines.Dispatchers.IO) {
+                        val ok = KokoroStore.downloadVoice(this@MainActivity, id)
+                        kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.Main) {
+                            toast(if (ok) "Downloading voice…" else "Download unavailable on this device")
+                        }
+                        kotlinx.coroutines.delay(8000)
+                        refreshPiper()
+                    }
+                },
+                onKokoroDelete = { id ->
+                    KokoroStore.deleteVoice(this@MainActivity, id)
+                    if (piperSelected == "kokoro:$id") {
+                        piperSelected = ""
+                        scope.launch {
+                            store.saveSettings(store.getSettings().copy(piperVoice = ""))
+                        }
+                    }
+                    refreshPiper()
+                },
+                onKokoroSelect = { id ->
+                    piperSelected = "kokoro:$id"
+                    scope.launch {
+                        store.saveSettings(store.getSettings().copy(piperVoice = "kokoro:$id"))
+                    }
+                },
+                studioUrl = studioUrl,
+                studioKey = studioKey,
+                onStudioSave = { url, key ->
+                    studioUrl = url
+                    studioKey = key
+                    scope.launch {
+                        val cur = store.getSettings()
+                        store.saveSettings(cur.copy(studioUrl = url, studioKey = key))
+                    }
+                    toast("Studio server saved")
+                },
+                onStudioSelect = {
+                    if (studioUrl.isBlank()) {
+                        toast("Enter the server URL first")
+                    } else {
+                        piperSelected = "studio"
+                        scope.launch {
+                            store.saveSettings(store.getSettings().copy(piperVoice = "studio"))
+                        }
                     }
                 },
                 translation = translation,
@@ -601,6 +1064,94 @@ class MainActivity : ComponentActivity() {
                     }
                 },
                 onBack = { screen = Screen.Home },
+                onMenu = ::openMenu
+            )
+            is Screen.Fasting -> FastingScreen(
+                active = activeFast,
+                history = fastHistory,
+                completedCount = fastCount,
+                customHours = customHours,
+                onCustomHours = { customHours = it },
+                intention = fastIntention,
+                onIntention = { fastIntention = it },
+                onStart = { kind, title, hours -> startFast(kind, title, hours) },
+                onEnd = { completed -> endFast(completed) },
+                onBack = { screen = Screen.Home },
+                onMenu = ::openMenu
+            )
+            is Screen.Reader -> ReaderScreen(
+                book = readerBook,
+                bookUri = readerUri,
+                chapter = readerChapter,
+                playing = readerPlaying,
+                statusLine = readerStatus,
+                onPick = { uri, name ->
+                    scope.launch(kotlinx.coroutines.Dispatchers.IO) {
+                        try {
+                            contentResolver.takePersistableUriPermission(
+                                uri,
+                                android.content.Intent.FLAG_GRANT_READ_URI_PERMISSION
+                            )
+                        } catch (e: Exception) {
+                            // already held or one-shot
+                        }
+                        try {
+                            val book = BookReader.open(this@MainActivity, uri, name)
+                            val saved = store.db().bookDao().load(uri.toString())
+                            kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.Main) {
+                                readerBook = book
+                                readerUri = uri.toString()
+                                readerChapter = saved?.chapter ?: 0
+                                readerStatus = "Opened “${book.title}” — ${book.chapters.size} parts"
+                            }
+                        } catch (e: Exception) {
+                            kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.Main) {
+                                readerStatus = "Could not read that file (${e.message ?: "unknown error"})"
+                            }
+                        }
+                    }
+                },
+                onChapter = { ix -> playReaderChapter(ix) },
+                onPlayPage = { ix ->
+                    fun playAt(at: Int) {
+                        val book = readerBook
+                        if (book == null || at !in book.pages.indices) return
+                        readerPageIx = at
+                        readerPlaying = true
+                        readerStatus = "Reading page ${at + 1} of ${book.pages.size}"
+                        speakBookText(book.pages[at]) {
+                            if (readerPlaying) {
+                                if (at + 1 in book.pages.indices) playAt(at + 1)
+                                else {
+                                    readerPlaying = false
+                                    readerStatus = "Finished “${book.title}”"
+                                }
+                            }
+                        }
+                    }
+                    playAt(ix)
+                },
+                pageIx = readerPageIx,
+                onPageIx = { readerPageIx = it },
+                onPauseResume = {
+                    if (readerPlaying) {
+                        haltBookAudio()
+                        readerPlaying = false
+                        readerStatus = "Paused"
+                    } else {
+                        playReaderChapter(readerChapter)
+                    }
+                },
+                onStop = {
+                    haltBookAudio()
+                    readerPlaying = false
+                    readerStatus = "Stopped"
+                },
+                onBack = {
+                    haltBookAudio()
+                    readerPlaying = false
+                    screen = Screen.Home
+                },
                 onMenu = ::openMenu
             )
         }

@@ -64,7 +64,10 @@ fun HomeScreen(
     userName: String,
     verseOfDay: Reflection?,
     streakLine: String,
-    statsLine: String
+    statsLine: String,
+    readerBookTitle: String? = null,
+    readerChapter: Int = 0,
+    onOpenReader: () -> Unit = {}
 ) {
     Column(modifier = Modifier.fillMaxSize()) {
         DrawerTopBar(title = "Quickened", onMenu = onMenu)
@@ -102,6 +105,28 @@ fun HomeScreen(
                             color = Color.White
                         )
                     }
+                }
+            }
+        }
+
+        // Reader Card
+        Card(
+            shape = RoundedCornerShape(22.dp),
+            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.4f)),
+            modifier = Modifier.fillMaxWidth()
+        ) {
+            Column(modifier = Modifier.padding(18.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                Text(
+                    "📖 Audiobook & Ebook Reader",
+                    style = MaterialTheme.typography.titleMedium.copy(fontFamily = SerifHeadings)
+                )
+                Text(
+                    if (readerBookTitle != null) "Reading: $readerBookTitle (Part ${readerChapter + 1})"
+                    else "Read and listen to PDF, EPUB, or TXT books offline.",
+                    style = MaterialTheme.typography.bodyMedium
+                )
+                BlendedOutlineButton(onClick = onOpenReader, modifier = Modifier.fillMaxWidth()) {
+                    Text(if (readerBookTitle != null) "▶ Continue Reading" else "Open Book Reader", fontSize = 15.sp)
                 }
             }
         }
@@ -162,7 +187,7 @@ fun HomeScreen(
 private fun JourneyCard(label: String, symbol: String, gradient: List<Color>, selected: Boolean, onClick: () -> Unit) {
     Card(
         onClick = onClick,
-        modifier = Modifier.width(150.dp).height(190.dp),
+        modifier = Modifier.width(160.dp).height(190.dp),
         shape = RoundedCornerShape(22.dp),
         border = if (selected) androidx.compose.foundation.BorderStroke(3.dp, Color.White) else null,
         elevation = CardDefaults.cardElevation(defaultElevation = if (selected) 8.dp else 2.dp)
@@ -172,7 +197,13 @@ private fun JourneyCard(label: String, symbol: String, gradient: List<Color>, se
             Column(verticalArrangement = Arrangement.SpaceBetween, modifier = Modifier.fillMaxSize()) {
                 Text(symbol, fontSize = 28.sp, color = Color.White)
                 Column {
-                    Text(label.replaceFirstChar { it.uppercase() }, color = Color.White, fontWeight = FontWeight.Bold, fontSize = 17.sp)
+                    Text(
+                        label.replaceFirstChar { it.uppercase() },
+                        color = Color.White,
+                        fontWeight = FontWeight.Bold,
+                        fontSize = 12.sp,
+                        maxLines = 1
+                    )
                     Text(
                         if (selected) "● Selected" else "Tap to choose",
                         color = Color.White.copy(alpha = 0.8f),

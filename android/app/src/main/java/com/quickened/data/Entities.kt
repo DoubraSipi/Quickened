@@ -29,5 +29,8 @@ data class Settings(
     val syncEndpoint: String = "",
     val lastSyncedAt: String = "",
     val translation: String = "simple", // "simple" | "kjv" (verses only)
-    val userName: String = ""
+    val userName: String = "",
+    val piperVoice: String = "", // voice id, "kokoro:xyz", or "studio"
+    val studioUrl: String = "",
+    val studioKey: String = ""
 )

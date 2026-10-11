@@ -3,6 +3,7 @@ package com.quickened.ui
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
@@ -28,6 +29,9 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.quickened.piper.KokoroCatalog
+import com.quickened.piper.PiperCatalog
+import com.quickened.piper.PiperVoices
 
 val THEMES = listOf("system", "light", "dark")
 val TRANSLATIONS = listOf("simple", "kjv", "web", "asv")
@@ -45,6 +49,22 @@ fun SettingsScreen(
     onTheme: (String) -> Unit,
     userName: String,
     onUserName: (String) -> Unit,
+    piperStates: Map<String, PiperVoices.Status>,
+    piperSelected: String,
+    onPiperDownload: (String) -> Unit,
+    onPiperDelete: (String) -> Unit,
+    onPiperSelect: (String) -> Unit,
+    kokoroModelReady: Boolean,
+    kokoroWorking: Boolean,
+    kokoroVoicesReady: Set<String>,
+    onKokoroModelDownload: () -> Unit,
+    onKokoroDownload: (String) -> Unit,
+    onKokoroDelete: (String) -> Unit,
+    onKokoroSelect: (String) -> Unit,
+    studioUrl: String,
+    studioKey: String,
+    onStudioSave: (String, String) -> Unit,
+    onStudioSelect: () -> Unit,
     translation: String,
     onTranslation: (String) -> Unit,
     reminderEnabled: Boolean,
@@ -83,11 +103,11 @@ fun SettingsScreen(
                 row.forEach { t ->
                     if (t == preferredTone) {
                         BlendedButton(onClick = { onTone(t) }, modifier = Modifier.weight(1f)) {
-                            Text(t.replaceFirstChar { it.uppercase() }, fontWeight = FontWeight.SemiBold, fontSize = 17.sp)
+                            Text(t.replaceFirstChar { it.uppercase() }, fontWeight = FontWeight.SemiBold, fontSize = 15.sp, maxLines = 1)
                         }
                     } else {
                         BlendedOutlineButton(onClick = { onTone(t) }, modifier = Modifier.weight(1f)) {
-                            Text(t.replaceFirstChar { it.uppercase() }, fontSize = 17.sp)
+                            Text(t.replaceFirstChar { it.uppercase() }, fontSize = 15.sp, maxLines = 1)
                         }
                     }
                 }
@@ -96,7 +116,13 @@ fun SettingsScreen(
         Text("Voice", style = MaterialTheme.typography.titleMedium)
         ExposedDropdownMenuBox(expanded = voiceExpanded, onExpandedChange = { voiceExpanded = !voiceExpanded }) {
             TextField(
-                value = voice.ifEmpty { "System default" },
+                value = if (piperSelected == "studio") {
+                    "✦ Studio voice"
+                } else if (piperSelected.startsWith("kokoro:")) {
+                    "✦ " + (KokoroCatalog.byId(piperSelected.removePrefix("kokoro:"))?.label ?: piperSelected)
+                } else if (piperSelected.isNotEmpty()) {
+                    "✦ " + (PiperCatalog.byId(piperSelected)?.label ?: piperSelected)
+                } else voice.ifEmpty { "System default" },
                 onValueChange = {},
                 readOnly = true,
                 trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = voiceExpanded) },
@@ -107,6 +133,24 @@ fun SettingsScreen(
                 DropdownMenuItem(text = { Text("System default") }, onClick = { onVoice(""); voiceExpanded = false })
                 voices.take(30).forEach { v ->
                     DropdownMenuItem(text = { Text(v) }, onClick = { onVoice(v); voiceExpanded = false })
+                }
+                PiperCatalog.voices.filter { piperStates[it.id] is PiperVoices.Status.Ready }.forEach { v ->
+                    DropdownMenuItem(
+                        text = { Text("✦ ${v.label} (Quickened)") },
+                        onClick = { onVoice("piper:${v.id}"); voiceExpanded = false }
+                    )
+                }
+                KokoroCatalog.voices.filter { kokoroVoicesReady.contains(it.id) }.forEach { v ->
+                    DropdownMenuItem(
+                        text = { Text("✦ ${v.label} (Kokoro)") },
+                        onClick = { onVoice("kokoro:${v.id}"); voiceExpanded = false }
+                    )
+                }
+                if (studioUrl.isNotBlank()) {
+                    DropdownMenuItem(
+                        text = { Text("✦ Studio voice (online)") },
+                        onClick = { onVoice("studio"); voiceExpanded = false }
+                    )
                 }
                 DropdownMenuItem(
                     text = { Text("⬇ Download more voices (online, once)") },
@@ -132,33 +176,169 @@ fun SettingsScreen(
                 if (nameDraft.isNotBlank()) onUserName(nameDraft.trim())
             }) { Text("Save", fontSize = 15.sp) }
         }
+        Text("Quickened voices (Piper)", style = MaterialTheme.typography.titleMedium)
+        Text(
+            "Download once over Wi-Fi, then offline. In-app playback arrives with the native voice engine.",
+            style = MaterialTheme.typography.bodySmall
+        )
+        PiperCatalog.voices.forEach { v ->
+            val st = piperStates[v.id] ?: PiperVoices.Status.Missing
+            Card(shape = RoundedCornerShape(20.dp), modifier = Modifier.fillMaxWidth()) {
+                Row(
+                    modifier = Modifier.fillMaxWidth().padding(16.dp),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text(v.label, style = MaterialTheme.typography.titleSmall)
+                        Text(
+                            "~${v.sizeMb}MB • " + when (st) {
+                                is PiperVoices.Status.Ready -> if (v.id == piperSelected) "ready • selected" else "ready"
+                                is PiperVoices.Status.Downloading -> "downloading…"
+                                else -> "not downloaded"
+                            },
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.primary
+                        )
+                    }
+                    when (st) {
+                        is PiperVoices.Status.Missing -> BlendedOutlineButton(onClick = { onPiperDownload(v.id) }) {
+                            Text("Get", fontSize = 15.sp)
+                        }
+                        is PiperVoices.Status.Downloading -> Text("…", fontSize = 17.sp)
+                        is PiperVoices.Status.Ready -> {
+                            if (v.id != piperSelected) {
+                                BlendedOutlineButton(onClick = { onPiperSelect(v.id) }) {
+                                    Text("Use", fontSize = 15.sp)
+                                }
+                            }
+                            androidx.compose.material3.TextButton(onClick = { onPiperDelete(v.id) }) {
+                                Text("remove", fontSize = 13.sp)
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        Text("Quickened voices (Kokoro)", style = MaterialTheme.typography.titleMedium)
+        Text(
+            "Natural voices. One 177MB engine download shared by all, then voice packs. Offline after.",
+            style = MaterialTheme.typography.bodySmall
+        )
+        if (!kokoroModelReady) {
+            BlendedOutlineButton(onClick = onKokoroModelDownload, modifier = Modifier.fillMaxWidth()) {
+                Text(if (kokoroWorking) "Downloading engine…" else "Get voice engine (~177MB)", fontSize = 15.sp)
+            }
+        }
+        KokoroCatalog.voices.forEach { v ->
+            val ready = kokoroVoicesReady.contains(v.id)
+            Card(shape = RoundedCornerShape(20.dp), modifier = Modifier.fillMaxWidth()) {
+                Row(
+                    modifier = Modifier.fillMaxWidth().padding(16.dp),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text(v.label, style = MaterialTheme.typography.titleSmall)
+                        Text(
+                            when {
+                                !kokoroModelReady -> "needs engine"
+                                ready && "kokoro:${v.id}" == piperSelected -> "ready • selected"
+                                ready -> "ready"
+                                else -> "not downloaded"
+                            },
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.primary
+                        )
+                    }
+                    if (kokoroModelReady && !ready) {
+                        BlendedOutlineButton(onClick = { onKokoroDownload(v.id) }) {
+                            Text("Get", fontSize = 15.sp)
+                        }
+                    } else if (ready) {
+                        if ("kokoro:${v.id}" != piperSelected) {
+                            BlendedOutlineButton(onClick = { onKokoroSelect(v.id) }) {
+                                Text("Use", fontSize = 15.sp)
+                            }
+                        }
+                        androidx.compose.material3.TextButton(onClick = { onKokoroDelete(v.id) }) {
+                            Text("remove", fontSize = 13.sp)
+                        }
+                    }
+                }
+            }
+        }
+        Text("Studio voice (online)", style = MaterialTheme.typography.titleMedium)
+        Text(
+            "Server-rendered top voice. Needs internet once per moment, then cached offline.",
+            style = MaterialTheme.typography.bodySmall
+        )
+        var urlDraft by remember { mutableStateOf(studioUrl) }
+        var keyDraft by remember { mutableStateOf(studioKey) }
+        TextField(
+            value = urlDraft,
+            onValueChange = { urlDraft = it },
+            label = { Text("Server URL (https://…)") },
+            modifier = Modifier.fillMaxWidth(),
+            shape = RoundedCornerShape(16.dp),
+            singleLine = true
+        )
+        TextField(
+            value = keyDraft,
+            onValueChange = { keyDraft = it },
+            label = { Text("Server key") },
+            modifier = Modifier.fillMaxWidth(),
+            shape = RoundedCornerShape(16.dp),
+            singleLine = true
+        )
+        Row(horizontalArrangement = Arrangement.spacedBy(10.dp), modifier = Modifier.fillMaxWidth()) {
+            BlendedOutlineButton(onClick = { onStudioSave(urlDraft.trim(), keyDraft.trim()) }, modifier = Modifier.weight(1f)) {
+                Text("Save", fontSize = 15.sp)
+            }
+            BlendedButton(onClick = { onStudioSelect() }, modifier = Modifier.weight(1f)) {
+                Text(if (piperSelected == "studio") "Selected ✓" else "Use Studio", fontSize = 15.sp)
+            }
+        }
         Text("Theme", style = MaterialTheme.typography.titleMedium)
         Row(horizontalArrangement = Arrangement.spacedBy(10.dp), modifier = Modifier.fillMaxWidth()) {
             THEMES.forEach { th ->
                 if (th == theme) {
                     BlendedButton(onClick = { onTheme(th) }, modifier = Modifier.weight(1f)) {
-                        Text(th.replaceFirstChar { it.uppercase() }, fontWeight = FontWeight.SemiBold, fontSize = 15.sp)
+                        Text(th.replaceFirstChar { it.uppercase() }, fontWeight = FontWeight.SemiBold, fontSize = 13.sp, maxLines = 1)
                     }
                 } else {
                     BlendedOutlineButton(onClick = { onTheme(th) }, modifier = Modifier.weight(1f)) {
-                        Text(th.replaceFirstChar { it.uppercase() }, fontSize = 15.sp)
+                        Text(th.replaceFirstChar { it.uppercase() }, fontSize = 13.sp, maxLines = 1)
                     }
                 }
             }
         }
         Text("Bible", style = MaterialTheme.typography.titleMedium)
-        Row(horizontalArrangement = Arrangement.spacedBy(10.dp), modifier = Modifier.fillMaxWidth()) {
-            TRANSLATIONS.forEach { tr ->
-                if (tr == translation) {
-                    BlendedButton(onClick = { onTranslation(tr) }, modifier = Modifier.weight(1f)) {
-                        Text(tr.replaceFirstChar { it.uppercase() }, fontWeight = FontWeight.SemiBold, fontSize = 15.sp)
-                    }
-                } else {
-                    BlendedOutlineButton(onClick = { onTranslation(tr) }, modifier = Modifier.weight(1f)) {
-                        Text(tr.replaceFirstChar { it.uppercase() }, fontSize = 15.sp)
+        Column(verticalArrangement = Arrangement.spacedBy(10.dp), modifier = Modifier.fillMaxWidth()) {
+            TRANSLATIONS.chunked(2).forEach { row ->
+            Row(horizontalArrangement = Arrangement.spacedBy(10.dp), modifier = Modifier.fillMaxWidth()) {
+                row.forEach { tr ->
+                    val label = if (tr == "simple") "Simple" else tr.uppercase()
+                    if (tr == translation) {
+                        BlendedButton(onClick = { onTranslation(tr) }, modifier = Modifier.weight(1f)) {
+                            Text(
+                                label,
+                                fontWeight = FontWeight.SemiBold,
+                                fontSize = 13.sp,
+                                maxLines = 1
+                            )
+                        }
+                    } else {
+                        BlendedOutlineButton(onClick = { onTranslation(tr) }, modifier = Modifier.weight(1f)) {
+                            Text(label, fontSize = 13.sp, maxLines = 1)
+                        }
                     }
                 }
+                if (row.size == 1) {
+                    Spacer(modifier = Modifier.weight(1f))
+                }
             }
+        }
         }
         Text("Daily reminder", style = MaterialTheme.typography.titleMedium)
         Row(

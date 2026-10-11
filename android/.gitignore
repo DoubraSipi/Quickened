@@ -4,6 +4,7 @@ local.properties
 .kotlin/
 build/
 app/build/
+.cxx/
 keystore/
 *.iml
 .DS_Store

@@ -18,3 +18,4 @@ dependencyResolutionManagement {
 rootProject.name = "Quickened"
 include(":app")
 include(":wear")
+include(":pipertts")
