@@ -591,6 +591,12 @@ class MainActivity : ComponentActivity() {
             translation = st.translation.ifEmpty { "simple" }
             piperSelected = st.piperVoice
             refreshPiper()
+            // Fresh installs: default to the recommended voice once downloaded.
+            // Existing choices (including Kokoro) are never overridden.
+            if (piperSelected.isEmpty() && piperStates[PiperCatalog.RECOMMENDED] is PiperVoices.Status.Ready) {
+                piperSelected = PiperCatalog.RECOMMENDED
+                store.saveSettings(store.getSettings().copy(piperVoice = PiperCatalog.RECOMMENDED))
+            }
             userName = st.userName.ifEmpty { null }
             if (reminderOn) ReminderScheduler.schedule(this@MainActivity, reminderHour, reminderMinute)
             if (autoDetect) ensureActivityDetection()

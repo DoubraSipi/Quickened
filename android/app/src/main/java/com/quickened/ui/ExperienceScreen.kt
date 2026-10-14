@@ -65,6 +65,16 @@ fun ExperienceScreen(
     } else {
         current.text
     }
+    // Render-ahead: cache this verse's audio while the user reads, so
+    // Listen starts instantly. Best-effort; speak() works without it.
+    LaunchedEffect(current, translation, kokoro) {
+        try {
+            val k = kokoro
+            if (k != null && k.ready) k.prefetch(spokenRef(shownText))
+        } catch (e: Exception) {
+            // ignore
+        }
+    }
 
     fun speak(text: String, onDone: () -> Unit) {
         val spoken = spokenRef(text)

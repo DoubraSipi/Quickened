@@ -136,7 +136,7 @@ fun SettingsScreen(
                 }
                 PiperCatalog.voices.filter { piperStates[it.id] is PiperVoices.Status.Ready }.forEach { v ->
                     DropdownMenuItem(
-                        text = { Text("✦ ${v.label} (Quickened)") },
+                        text = { Text("✦ ${v.label} (Quickened)" + if (v.id == PiperCatalog.RECOMMENDED) " ★" else "") },
                         onClick = { onVoice("piper:${v.id}"); voiceExpanded = false }
                     )
                 }
@@ -190,7 +190,10 @@ fun SettingsScreen(
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     Column(modifier = Modifier.weight(1f)) {
-                        Text(v.label, style = MaterialTheme.typography.titleSmall)
+                        Text(
+                            v.label + if (v.id == PiperCatalog.RECOMMENDED) " ★ Recommended" else "",
+                            style = MaterialTheme.typography.titleSmall
+                        )
                         Text(
                             "~${v.sizeMb}MB • " + when (st) {
                                 is PiperVoices.Status.Ready -> if (v.id == piperSelected) "ready • selected" else "ready"
@@ -268,7 +271,18 @@ fun SettingsScreen(
                 }
             }
         }
-        Text("Studio voice (online)", style = MaterialTheme.typography.titleMedium)
+        var studioOpen by remember { mutableStateOf(studioUrl.isNotBlank()) }
+        Row(
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically,
+            modifier = Modifier.fillMaxWidth()
+        ) {
+            Text("Studio voice (needs server)", style = MaterialTheme.typography.titleMedium, modifier = Modifier.weight(1f))
+            BlendedOutlineButton(onClick = { studioOpen = !studioOpen }) {
+                Text(if (studioOpen) "Hide" else "Set up", fontSize = 14.sp)
+            }
+        }
+        if (studioOpen) {
         Text(
             "Server-rendered top voice. Needs internet once per moment, then cached offline.",
             style = MaterialTheme.typography.bodySmall
@@ -298,6 +312,7 @@ fun SettingsScreen(
             BlendedButton(onClick = { onStudioSelect() }, modifier = Modifier.weight(1f)) {
                 Text(if (piperSelected == "studio") "Selected ✓" else "Use Studio", fontSize = 15.sp)
             }
+        }
         }
         Text("Theme", style = MaterialTheme.typography.titleMedium)
         Row(horizontalArrangement = Arrangement.spacedBy(10.dp), modifier = Modifier.fillMaxWidth()) {

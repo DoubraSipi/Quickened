@@ -16,6 +16,13 @@ object PiperCatalog {
 
     val voices = listOf(
         PiperVoice(
+            id = "ryan",
+            label = "Ryan (studio quality, male)",
+            sizeMb = 121,
+            onnxUrl = "$ROOT/en/en_US/ryan/high/en_US-ryan-high.onnx",
+            jsonUrl = "$ROOT/en/en_US/ryan/high/en_US-ryan-high.onnx.json"
+        ),
+        PiperVoice(
             id = "lessac",
             label = "Lessac (natural, female)",
             sizeMb = 63,
@@ -39,4 +46,8 @@ object PiperCatalog {
     )
 
     fun byId(id: String): PiperVoice? = voices.firstOrNull { it.id == id }
+
+    // Daily-use pick: high-quality voice, fast on-device. Shown first with
+    // a badge; auto-selected for fresh installs once downloaded.
+    const val RECOMMENDED = "ryan"
 }

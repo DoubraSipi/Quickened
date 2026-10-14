@@ -15,7 +15,10 @@ class KokoroEngine(modelPath: String, voicePath: String, vocab: Map<String, Long
     private val session: OrtSession = env.createSession(
         modelPath,
         OrtSession.SessionOptions().apply {
-            setIntraOpNumThreads(kotlin.math.min(4, Runtime.getRuntime().availableProcessors()))
+            // Thread sweep on itel P70 (Unisoc T606), int8 82M model:
+            // 2 threads ~7x realtime, 4 and 8 threads ~4x realtime.
+            // Chip-bound, not thread-bound: keep 4 (less battery, same speed).
+            setIntraOpNumThreads(4)
             setOptimizationLevel(OrtSession.SessionOptions.OptLevel.ALL_OPT)
         }
     )

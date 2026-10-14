@@ -20,6 +20,7 @@ class KokoroSpeaker(
     private var engine: KokoroEngine? = null
     private var vocab: Map<String, Long>? = null
     private var stopped = false
+    private var generation = 0
     private var track: AudioTrack? = null
     private val renderExec = Executors.newSingleThreadExecutor()
 
@@ -39,6 +40,12 @@ class KokoroSpeaker(
             val voice = KokoroStore.voiceFile(context, voiceId).absolutePath
             engine = KokoroEngine(model, voice, vocab!!)
             android.util.Log.i("KOKORO_APP", "speaker ready: $voiceId inputs=" + engine!!.inputNames)
+            // Pay ONNX first-run cost now, not on first Listen.
+            try {
+                renderExec.submit { warmup() }
+            } catch (e: Exception) {
+                android.util.Log.w("KOKORO_APP", "warmup submit failed", e)
+            }
             true
         } catch (e: Exception) {
             android.util.Log.e("KOKORO_APP", "init failed", e)
@@ -80,6 +87,7 @@ class KokoroSpeaker(
         }
 
         stopped = false
+        generation++
         Thread {
             try {
                 val sampleRate = eng.sampleRate
@@ -111,24 +119,16 @@ class KokoroSpeaker(
                 t.play()
 
                 val pauseShorts = ShortArray((sampleRate * 220) / 1000)
-                val rendered = ArrayList<Short>()
+                val renderedChunks = ArrayList<ShortArray>()
                 var totalWrittenShorts = 0L
                 var firstAudio = true
 
-                fun renderUnit(u: String): FloatArray? {
+                fun renderUnit(u: String): ShortArray? {
                     if (stopped) return null
-                    return try {
-                        val phonemes = EspeakBridge.nativePhonemize("en", u) ?: return null
-                        val ids = eng.tokenize(phonemes)
-                        if (ids.isEmpty() || stopped) return null
-                        eng.synthesize(ids)
-                    } catch (e: Exception) {
-                        android.util.Log.e("KOKORO_APP", "unit render failed", e)
-                        null
-                    }
+                    return renderUnitSync(eng, u)
                 }
 
-                var pending = renderExec.submit<FloatArray?> { renderUnit(units[0]) }
+                var pending = renderExec.submit<ShortArray?> { renderUnit(units[0]) }
 
                 for (idx in units.indices) {
                     if (stopped) break
@@ -139,7 +139,7 @@ class KokoroSpeaker(
                     }
 
                     if (idx + 1 < units.size && !stopped) {
-                        pending = renderExec.submit<FloatArray?> { renderUnit(units[idx + 1]) }
+                        pending = renderExec.submit<ShortArray?> { renderUnit(units[idx + 1]) }
                     }
 
                     if (audio != null && audio.isNotEmpty()) {
@@ -147,8 +147,8 @@ class KokoroSpeaker(
                             firstAudio = false
                             onStarted()
                         }
-                        val shorts = ShortArray(audio.size) { (audio[it].coerceIn(-1f, 1f) * 32767).toInt().toShort() }
-                        for (s in shorts) rendered.add(s)
+                        val shorts = audio
+                        renderedChunks.add(shorts)
 
                         var written = 0
                         while (written < shorts.size && !stopped) {
@@ -160,7 +160,7 @@ class KokoroSpeaker(
                         }
 
                         if (idx < units.size - 1 && !stopped && pauseShorts.isNotEmpty()) {
-                            for (s in pauseShorts) rendered.add(s)
+                            renderedChunks.add(pauseShorts)
                             val w = t.write(pauseShorts, 0, pauseShorts.size, AudioTrack.WRITE_BLOCKING)
                             if (w > 0) totalWrittenShorts += w
                         }
@@ -183,8 +183,16 @@ class KokoroSpeaker(
                 if (track === t) track = null
 
                 if (!stopped) {
-                    if (rendered.isNotEmpty()) {
-                        saveCache(key, rendered.toShortArray(), sampleRate)
+                    if (renderedChunks.isNotEmpty()) {
+                        var total = 0
+                        for (c in renderedChunks) total += c.size
+                        val out = ShortArray(total)
+                        var pos = 0
+                        for (c in renderedChunks) {
+                            c.copyInto(out, pos)
+                            pos += c.size
+                        }
+                        saveCache(key, out, sampleRate)
                     }
                     onDone()
                 }
@@ -197,6 +205,7 @@ class KokoroSpeaker(
 
     fun stop() {
         stopped = true
+        generation++
         try {
             track?.stop()
             track?.flush()
@@ -222,6 +231,108 @@ class KokoroSpeaker(
         engine = null
     }
 
+    // One tiny render at voice-ready time so ONNX pays first-run cost
+    // before the user presses Listen (timing is logged for tuning).
+    private fun warmup() {
+        try {
+            val eng = engine ?: return
+            if (vocab == null || stopped) return
+            val t0 = android.os.SystemClock.elapsedRealtime()
+            val phonemes = EspeakBridge.nativePhonemize("en", "Hello.") ?: return
+            val ids = eng.tokenize(phonemes)
+            if (ids.isEmpty() || stopped) return
+            val audio = eng.synthesize(ids)
+            android.util.Log.i(
+                "KOKORO_APP",
+                "warmup renderMs=" + (android.os.SystemClock.elapsedRealtime() - t0) +
+                    " audioMs=" + (audio.size * 1000 / eng.sampleRate)
+            )
+        } catch (e: Exception) {
+            android.util.Log.w("KOKORO_APP", "warmup failed", e)
+        }
+    }
+
+    // Background render-ahead: fills the per-unit cache so Listen starts
+    // instantly. A same-text speak() cancels this via generation++; units
+    // already saved are reused instead of re-rendered.
+    fun prefetch(text: String) {
+        val myGen = generation
+        try {
+            renderExec.submit {
+                try {
+                    if (myGen != generation || stopped) return@submit
+                    val eng = engine ?: return@submit
+                    if (vocab == null) return@submit
+                    for (u in splitSentences(text)) {
+                        if (myGen != generation || stopped) return@submit
+                        if (unitExists(u)) continue
+                        renderUnitSync(eng, u)
+                    }
+                    android.util.Log.i("KOKORO_APP", "prefetch done chars=" + text.length)
+                } catch (e: Exception) {
+                    android.util.Log.w("KOKORO_APP", "prefetch failed", e)
+                }
+            }
+        } catch (e: Exception) {
+            android.util.Log.w("KOKORO_APP", "prefetch submit failed", e)
+        }
+    }
+
+    // Render one unit, reusing + filling the per-unit cache. Shared by
+    // speak() streaming and prefetch(); callers run it on renderExec so
+    // all ONNX runs stay serialized on the single-thread executor.
+    private fun renderUnitSync(eng: KokoroEngine, u: String): ShortArray? {
+        if (stopped) return null
+        loadUnit(u)?.let { return it }
+        return try {
+            val t0 = android.os.SystemClock.elapsedRealtime()
+            val phonemes = EspeakBridge.nativePhonemize("en", u) ?: return null
+            val ids = eng.tokenize(phonemes)
+            if (ids.isEmpty() || stopped) return null
+            val audio = eng.synthesize(ids)
+            android.util.Log.i(
+                "KOKORO_APP",
+                "unit chars=" + u.length + " phon=" + phonemes.length +
+                    " renderMs=" + (android.os.SystemClock.elapsedRealtime() - t0) +
+                    " audioMs=" + (audio.size * 1000 / eng.sampleRate)
+            )
+            val shorts = ShortArray(audio.size) { (audio[it].coerceIn(-1f, 1f) * 32767).toInt().toShort() }
+            saveUnit(u, shorts, eng.sampleRate)
+            shorts
+        } catch (e: Exception) {
+            android.util.Log.e("KOKORO_APP", "unit render failed", e)
+            null
+        }
+    }
+
+    private fun unitFile(key: String): File =
+        File(File(filesDir, "audio-cache/units").apply { mkdirs() }, key)
+
+    private fun unitExists(u: String): Boolean = unitFile(cacheKey(u)).exists()
+
+    private fun loadUnit(u: String): ShortArray? {
+        return try {
+            val f = unitFile(cacheKey(u))
+            if (!f.exists()) return null
+            val bytes = f.readBytes()
+            if (bytes.size < 44) return null
+            val pcm = bytes.drop(44).toByteArray()
+            ShortArray(pcm.size / 2) { i ->
+                ((pcm[i * 2].toInt() and 0xFF) or (pcm[i * 2 + 1].toInt() shl 8)).toShort()
+            }
+        } catch (e: Exception) {
+            null
+        }
+    }
+
+    private fun saveUnit(u: String, shorts: ShortArray, sampleRate: Int) {
+        try {
+            writeWav(unitFile(cacheKey(u)), shorts, sampleRate)
+        } catch (e: Exception) {
+            android.util.Log.w("KOKORO_APP", "unit cache save failed", e)
+        }
+    }
+
     private fun cacheKey(text: String): String {
         val md = java.security.MessageDigest.getInstance("SHA-256")
         return md.digest(text.toByteArray(Charsets.UTF_8)).joinToString("") { "%02x".format(it) }
@@ -233,17 +344,20 @@ class KokoroSpeaker(
 
     private fun saveCache(key: String, shorts: ShortArray, sampleRate: Int) {
         try {
-            val out = cacheFile(key)
-            val data = java.nio.ByteBuffer.allocate(44 + shorts.size * 2).order(java.nio.ByteOrder.LITTLE_ENDIAN)
-            data.put("RIFF".toByteArray()); data.putInt(36 + shorts.size * 2); data.put("WAVE".toByteArray())
-            data.put("fmt ".toByteArray()); data.putInt(16); data.putShort(1); data.putShort(1)
-            data.putInt(sampleRate); data.putInt(sampleRate * 2); data.putShort(2); data.putShort(16)
-            data.put("data".toByteArray()); data.putInt(shorts.size * 2)
-            shorts.forEach { data.putShort(it) }
-            FileOutputStream(out).use { it.write(data.array()) }
+            writeWav(cacheFile(key), shorts, sampleRate)
         } catch (e: Exception) {
             android.util.Log.w("KOKORO_APP", "cache save failed", e)
         }
+    }
+
+    private fun writeWav(out: File, shorts: ShortArray, sampleRate: Int) {
+        val data = java.nio.ByteBuffer.allocate(44 + shorts.size * 2).order(java.nio.ByteOrder.LITTLE_ENDIAN)
+        data.put("RIFF".toByteArray()); data.putInt(36 + shorts.size * 2); data.put("WAVE".toByteArray())
+        data.put("fmt ".toByteArray()); data.putInt(16); data.putShort(1); data.putShort(1)
+        data.putInt(sampleRate); data.putInt(sampleRate * 2); data.putShort(2); data.putShort(16)
+        data.put("data".toByteArray()); data.putInt(shorts.size * 2)
+        shorts.forEach { data.putShort(it) }
+        FileOutputStream(out).use { it.write(data.array()) }
     }
 
     private fun playFile(cached: File, onDone: () -> Unit, onStarted: () -> Unit) {
